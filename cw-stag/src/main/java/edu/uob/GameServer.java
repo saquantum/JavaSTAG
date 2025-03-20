@@ -14,6 +14,8 @@ public final class GameServer {
 
     private static final char END_OF_TRANSMISSION = 4;
 
+    private Controller controller = null;
+
     public static void main(String[] args) throws IOException {
         File entitiesFile = Paths.get("config" + File.separator + "basic-entities.dot").toAbsolutePath().toFile();
         File actionsFile = Paths.get("config" + File.separator + "basic-actions.xml").toAbsolutePath().toFile();
@@ -29,7 +31,11 @@ public final class GameServer {
     * @param actionsFile The game configuration file containing all game actions to use in your game
     */
     public GameServer(File entitiesFile, File actionsFile) {
-        // TODO implement your server logic here
+        try {
+            this.controller = new Controller(entitiesFile, actionsFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -39,8 +45,8 @@ public final class GameServer {
     * @param command The incoming command to be processed
     */
     public String handleCommand(String command) {
-        // TODO implement your server logic here
-        return "";
+        if(this.controller == null) return "[ERROR]: Invalid building files so server has no valid controlling unit!";
+        return this.controller.handleCommand(command);
     }
 
     /**
