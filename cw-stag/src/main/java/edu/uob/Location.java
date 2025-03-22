@@ -38,9 +38,9 @@ public class Location extends GameEntity {
     public String toString(){
         StringBuilder sb  = new StringBuilder();
         sb.append("Location: ").append(this.getName()).append(", ");
-
-        this.attributes.forEach((key, value) -> sb.append(key).append(": ").append(value).append(", "));
-        sb.append(System.lineSeparator());
+        for (Map.Entry<String, String> entry : this.attributes.entrySet()) {
+            sb.append(entry.getKey()).append(": ").append(entry.getValue()).append(", ");
+        }
 
         for (Map.Entry<String, GameEntity> item : this.items.entrySet()) {
             sb.append(item.getValue().toString()).append(System.lineSeparator());

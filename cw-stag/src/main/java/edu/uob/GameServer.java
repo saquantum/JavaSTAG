@@ -17,8 +17,8 @@ public final class GameServer {
     private Controller controller = null;
 
     public static void main(String[] args) throws IOException {
-        File entitiesFile = Paths.get("config" + File.separator + "basic-entities.dot").toAbsolutePath().toFile();
-        File actionsFile = Paths.get("config" + File.separator + "basic-actions.xml").toAbsolutePath().toFile();
+        File entitiesFile = Paths.get(new StringBuilder().append("config").append(File.separator).append("basic-entities.dot").toString()).toAbsolutePath().toFile();
+        File actionsFile = Paths.get(new StringBuilder().append("config").append(File.separator).append("basic-actions.dot").toString()).toAbsolutePath().toFile();
         GameServer server = new GameServer(entitiesFile, actionsFile);
         server.blockingListenOn(8888);
     }
@@ -58,10 +58,10 @@ public final class GameServer {
     */
     public void blockingListenOn(int portNumber) throws IOException {
         try (ServerSocket s = new ServerSocket(portNumber)) {
-            System.out.println("Server listening on port " + portNumber);
+            System.out.println(new StringBuilder().append("Server listening on port ").append(portNumber));
             while (!Thread.interrupted()) {
                 try {
-                    blockingHandleConnection(s);
+                    this.blockingHandleConnection(s);
                 } catch (IOException e) {
                     System.out.println("Connection closed");
                 }
@@ -83,10 +83,10 @@ public final class GameServer {
             System.out.println("Connection established");
             String incomingCommand = reader.readLine();
             if(incomingCommand != null) {
-                System.out.println("Received message from " + incomingCommand);
-                String result = handleCommand(incomingCommand);
+                System.out.println(new StringBuilder().append("Received message from ").append(incomingCommand));
+                String result = this.handleCommand(incomingCommand);
                 writer.write(result);
-                writer.write("\n" + END_OF_TRANSMISSION + "\n");
+                writer.write(new StringBuilder().append("\n").append(END_OF_TRANSMISSION).append("\n").toString());
                 writer.flush();
             }
         }
