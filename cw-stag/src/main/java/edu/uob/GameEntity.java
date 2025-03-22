@@ -29,15 +29,15 @@ public abstract class GameEntity {
 
     public String toString() {
         String type = null;
-        if (this instanceof edu.uob.entities.Artefact) {
+        if (this instanceof Artefact) {
             type = "  artefact: ";
-        } else if (this instanceof edu.uob.entities.Character) {
+        } else if (this instanceof Character) {
             type = "  character: ";
-        } else if (this instanceof edu.uob.entities.Furniture) {
+        } else if (this instanceof Furniture) {
             type = "  furniture: ";
-        } else if (this instanceof edu.uob.entities.Player) {
+        } else if (this instanceof Player) {
             type = "  player: ";
-        } else if (this instanceof edu.uob.entities.Location tmp) {
+        } else if (this instanceof Location tmp) {
             return tmp.toString();
         }
 

@@ -5,6 +5,8 @@ import com.alexmerz.graphviz.objects.Edge;
 import com.alexmerz.graphviz.objects.Graph;
 import com.alexmerz.graphviz.objects.Node;
 
+import java.io.File;
+import java.io.FileReader;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -12,42 +14,53 @@ import java.util.stream.Collectors;
 
 public class Document {
     private int vertices = 0;
-    private Map<Integer, GameEntity> locations = new HashMap<>();
-    private Map<String, Integer> reverseLocations = new HashMap<>();
-    private List<Edge> edges = new LinkedList<>();
-    private Map<String, List<Edge>> adj = new HashMap<>();
+    private final Map<Integer, Location> locations = new HashMap<>();
+    private final Map<String, Integer> reverseLocations = new HashMap<>();
+    private final Map<String, List<Edge>> adj = new HashMap<>();
 
-    private Set<String> allEntities = new HashSet<>(); // check duplicate name
-    private Set<String> builtInActions = Set.of("inventory", "inv", "get", "drop", "goto", "look"); // check entity name clash with built-in actions
+    private final Map<String, GameEntity> allEntities = new HashMap<>();
 
-    public Document(Parser parser) throws MyExceptions {
-        this.getDocument(parser.getGraphs().get(0));
+    private final Map<String, Player> players = new HashMap<>();
+
+    public Document(File entitiesFile) throws MyExceptions {
+        try {
+            Parser parser = new Parser();
+            FileReader reader = new FileReader(entitiesFile);
+            parser.parse(reader);
+            this.setDocument(parser.getGraphs().get(0));
+
+            this.players.put("player$default", new Player("player$default"));
+            // init player location
+            for (Map.Entry<String, Player> entry : this.players.entrySet()) {
+                entry.getValue().setCurrent(this.getLocation(0));
+            }
+        } catch (Exception e) {
+            throw new MyExceptions(e.getMessage());
+        }
     }
 
-    public void addLocation(edu.uob.entities.Location e) {
+    public void addLocation(Location e) {
         this.locations.put(this.vertices, e);
         this.reverseLocations.put(e.getName().toLowerCase(), this.vertices);
         this.vertices++;
     }
 
-    public GameEntity getLocation(int i) {
-        return this.locations.get(i);
+    public boolean hasLocation(String name) {
+        return this.reverseLocations.containsKey(name);
     }
 
-    public void setEdges(List<Edge> edges) {
-        this.edges = edges;
+    public Location getLocation(String name) {
+        return this.locations.get(this.reverseLocations.get(name));
     }
 
-    public List<Edge> listEdges() {
-        return this.edges;
+    public Location getLocation(int index) {
+        return this.locations.get(index);
     }
 
     public void addEdge(Edge e) throws MyExceptions {
-        this.edges.add(e);
-
         String from = e.getSource().getNode().getId().getId().toLowerCase();
         String to = e.getTarget().getNode().getId().getId().toLowerCase();
-        if (!reverseLocations.containsKey(from) || !reverseLocations.containsKey(to)) {
+        if (!this.hasLocation(from) || !this.hasLocation(to)) {
             throw new MyExceptions.InvalidEdgeException();
         }
 
@@ -59,6 +72,28 @@ public class Document {
         this.adj.put(from, list);
     }
 
+    public Edge removeEdge(String from, String to) {
+        if(!this.adj.containsKey(from)) return null;
+
+        for (Edge edge : this.adj.get(from)) {
+            if(edge.getTarget().getNode().getId().getId().equals(to)){
+                this.adj.get(from).remove(edge);
+                return edge;
+            }
+        }
+        return null;
+    }
+
+    public boolean hasEdge(String from, String to){
+        if(!this.hasLocation(from)) return false;
+        for (Edge edge : this.adj.get(from)) {
+            if(edge.getTarget().getNode().getId().getId().equals(to)){
+                return true;
+            }
+        }
+        return false;
+    }
+
     public List<Edge> getEdgesFrom(String location) {
         return this.adj.get(location.toLowerCase());
     }
@@ -68,7 +103,15 @@ public class Document {
     }
 
     public int countEdge() {
-        return this.edges.size();
+        int sum = 0;
+        for (Map.Entry<String, List<Edge>> entry : this.adj.entrySet()) {
+            sum += entry.getValue().size();
+        }
+        return sum;
+    }
+
+    public Map<String, Player> getPlayers() {
+        return this.players;
     }
 
     public String toString() {
@@ -76,8 +119,14 @@ public class Document {
         for (int i = 0; i < this.vertices; i++) {
             sb.append(locations.get(i).toString());
         }
-        for (Edge edge : this.edges) {
-            sb.append(edge.getSource().getNode().getId().getId()).append(" -> ").append(edge.getTarget().getNode().getId().getId()).append(System.lineSeparator());
+        for (Map.Entry<String, List<Edge>> entry : this.adj.entrySet()) {
+            for (Edge edge : entry.getValue()) {
+                sb
+                        .append(edge.getSource().getNode().getId().getId())
+                        .append(" -> ")
+                        .append(edge.getTarget().getNode().getId().getId())
+                        .append(System.lineSeparator());
+            }
         }
         return sb.toString();
     }
@@ -106,7 +155,7 @@ public class Document {
             Map.entry("furniture", Types.FURNITURE), Map.entry("characters", Types.CHARACTER),
             Map.entry("artefacts", Types.ARTEFACT), Map.entry("paths", Types.PATH));
 
-    private void getDocument(Graph G) throws MyExceptions {
+    private void setDocument(Graph G) throws MyExceptions {
         if (G == null || entityTypes.get(G.getId().getId().toLowerCase()) != Types.LAYOUT) {
             throw new MyExceptions.InvalidParserException();
         }
@@ -120,12 +169,14 @@ public class Document {
             for (Graph location : locations) {
                 Node locationDetails = this.getDirectNodes(location).get(0);
                 String locationName = locationDetails.getId().getId().toLowerCase();
-                this.checkUniqueName(locationName);
+                if (this.hasEntity(locationName)) {
+                    throw new MyExceptions.DuplicateEntityException();
+                }
                 this.checkBuiltInAction(locationName);
-                edu.uob.entities.Location current = new edu.uob.entities.Location(locationName);
+                Location current = new Location(locationName);
                 current.setAttributes(locationDetails.getAttributes());
                 for (Graph subgraph : location.getSubgraphs()) {
-                    List<GameEntity> items = this.getItems(subgraph);
+                    List<GameEntity> items = this.getItems(subgraph, current);
                     if (items == null) continue;
                     for (GameEntity item : items) {
                         if (item != null) current.addItem(item);
@@ -133,6 +184,11 @@ public class Document {
                 }
                 this.addLocation(current);
             }
+        }
+
+        // if storeroom is not specified, generate one
+        if (!this.hasLocation("storeroom")) {
+            this.addLocation(new Location("storeroom"));
         }
 
         Graph pathGraph = G.getSubgraphs().get(1); // paths
@@ -145,7 +201,7 @@ public class Document {
         }
     }
 
-    private List<GameEntity> getItems(Graph G) throws MyExceptions {
+    private List<GameEntity> getItems(Graph G, Location location) throws MyExceptions {
         if (G == null) return null;
 
         List<GameEntity> items = new LinkedList<>();
@@ -156,28 +212,32 @@ public class Document {
 
         for (Node node : this.getDirectNodes(G)) {
             String name = node.getId().getId().toLowerCase();
-            this.checkUniqueName(name);
+            if (this.hasEntity(name)) {
+                throw new MyExceptions.DuplicateEntityException();
+            }
             this.checkBuiltInAction(name);
 
             Class<? extends GameEntity> clazz = null;
             if (type == Types.PLAYER) {
-                clazz = edu.uob.entities.Player.class;
+                clazz = Player.class;
             }
             if (type == Types.FURNITURE) {
-                clazz = edu.uob.entities.Furniture.class;
+                clazz = Furniture.class;
             }
             if (type == Types.CHARACTER) {
-                clazz = edu.uob.entities.Character.class;
+                clazz = Character.class;
             }
             if (type == Types.ARTEFACT) {
-                clazz = edu.uob.entities.Artefact.class;
+                clazz = Artefact.class;
             }
 
             try {
                 GameEntity item = clazz.getConstructor(String.class).newInstance(name);
-                this.allEntities.add(name);
+                this.allEntities.put(name, item);
                 item.setAttributes(node.getAttributes());
+                ((Movable) item).setCurrent(location);
                 items.add(item);
+                if (type == Types.PLAYER) this.players.put(name, (Player) item);
             } catch (Exception e) {
                 throw new MyExceptions.NoConstructorException(type.toString());
             }
@@ -185,12 +245,16 @@ public class Document {
         return items;
     }
 
-    public void checkBuiltInAction(String name) throws MyExceptions{
-        if(this.builtInActions.contains(name)) throw new MyExceptions.DuplicateEntityException();
+    public void checkBuiltInAction(String name) throws MyExceptions {
+        if (GameActions.builtInActions.contains(name)) throw new MyExceptions.DuplicateEntityException();
     }
 
     // action triggers cannot be named after an entity -- check it using below method
-    public void checkUniqueName(String name) throws MyExceptions{
-        if(this.allEntities.contains(name)) throw new MyExceptions.DuplicateEntityException();
+    public boolean hasEntity(String name) {
+        return this.allEntities.containsKey(name);
+    }
+
+    public GameEntity getEntity(String name){
+        return this.allEntities.get(name);
     }
 }
