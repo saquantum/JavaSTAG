@@ -28,8 +28,6 @@ public class Document {
             FileReader reader = new FileReader(entitiesFile);
             parser.parse(reader);
             this.setDocument(parser.getGraphs().get(0));
-
-            this.players.put("player$default", new Player("player$default"));
             // init player location
             for (Map.Entry<String, Player> entry : this.players.entrySet()) {
                 entry.getValue().setCurrent(this.getLocation(0));
@@ -73,10 +71,10 @@ public class Document {
     }
 
     public Edge removeEdge(String from, String to) {
-        if(!this.adj.containsKey(from)) return null;
+        if (!this.adj.containsKey(from)) return null;
 
         for (Edge edge : this.adj.get(from)) {
-            if(edge.getTarget().getNode().getId().getId().equals(to)){
+            if (edge.getTarget().getNode().getId().getId().equals(to)) {
                 this.adj.get(from).remove(edge);
                 return edge;
             }
@@ -84,10 +82,10 @@ public class Document {
         return null;
     }
 
-    public boolean hasEdge(String from, String to){
-        if(!this.hasLocation(from)) return false;
+    public boolean hasEdge(String from, String to) {
+        if (!this.hasLocation(from)) return false;
         for (Edge edge : this.adj.get(from)) {
-            if(edge.getTarget().getNode().getId().getId().equals(to)){
+            if (edge.getTarget().getNode().getId().getId().equals(to)) {
                 return true;
             }
         }
@@ -108,6 +106,16 @@ public class Document {
             sum += entry.getValue().size();
         }
         return sum;
+    }
+
+    public Player newPlayer(String name) throws MyExceptions{
+        if(this.hasEntity(name)) throw new MyExceptions.DuplicateEntityException();
+
+        Player player = new Player(name);
+        player.setCurrent(this.getLocation(0));
+        this.players.put(name, player);
+        this.allEntities.put(name, player);
+        return player;
     }
 
     public Map<String, Player> getPlayers() {
@@ -254,7 +262,7 @@ public class Document {
         return this.allEntities.containsKey(name);
     }
 
-    public GameEntity getEntity(String name){
+    public GameEntity getEntity(String name) {
         return this.allEntities.get(name);
     }
 }

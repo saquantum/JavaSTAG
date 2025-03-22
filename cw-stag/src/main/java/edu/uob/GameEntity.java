@@ -27,6 +27,11 @@ public abstract class GameEntity {
         this.attributes = map;
     }
 
+    public boolean equals(GameEntity that){
+        if(that == null) return false;
+        return this.getName().equals(that.getName());
+    }
+
     public String toString() {
         String type = null;
         if (this instanceof Artefact) {

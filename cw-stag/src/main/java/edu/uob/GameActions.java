@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 public class GameActions {
-    public static Set<String> builtInActions = Set.of("inventory", "inv", "get", "drop", "goto", "look");
+    public static Set<String> builtInActions = Set.of("inventory", "inv", "get", "drop", "goto", "look", "health");
 
     private final List<Action> customizedActions = new LinkedList<>();
 
@@ -42,17 +42,20 @@ public class GameActions {
         List<Action> actions = new LinkedList<>();
 
         if (GameActions.builtInActions.contains(firstWord)) {
-            Action actionObject = new Action();
             if ("inv".equals(firstWord) || "inventory".equals(firstWord)) {
                 if (entities.isEmpty()) actions.add(new InvAction(List.of("inv"), null));
             } else if ("get".equals(firstWord)) {
                 if (entities.size() == 1) actions.add(new GetAction(List.of("get"), entities.stream().toList().get(0)));
             } else if ("drop".equals(firstWord)) {
-                if (entities.size() == 1) actions.add(new DropAction(List.of("drop"), entities.stream().toList().get(0)));
+                if (entities.size() == 1)
+                    actions.add(new DropAction(List.of("drop"), entities.stream().toList().get(0)));
             } else if ("goto".equals(firstWord)) {
-                if (entities.size() == 1) actions.add(new GotoAction(List.of("goto"), entities.stream().toList().get(0)));
+                if (entities.size() == 1)
+                    actions.add(new GotoAction(List.of("goto"), entities.stream().toList().get(0)));
             } else if ("look".equals(firstWord)) {
                 if (entities.isEmpty()) actions.add(new LookAction(List.of("look"), null));
+            } else if ("health".equals(firstWord)) {
+                if (entities.isEmpty()) actions.add(new HealthAction(List.of("health"), null));
             }
         }
 
@@ -227,7 +230,7 @@ class Action {
     }
 
     public boolean checkSubjects(Set<String> candidates) {
-        if(this instanceof InvAction || this instanceof GetAction || this instanceof DropAction || this instanceof GotoAction || this instanceof LookAction){
+        if (this instanceof InvAction || this instanceof GetAction || this instanceof DropAction || this instanceof GotoAction || this instanceof LookAction || this instanceof HealthAction) {
             return true;
         }
         // Partial command: candidates contains at least one subject
@@ -287,44 +290,50 @@ class Action {
     }
 }
 
-class InvAction extends Action{
-    public InvAction(List<String> trigger, String subject){
+class InvAction extends Action {
+    public InvAction(List<String> trigger, String subject) {
         super(trigger, subject);
     }
 }
 
-class GetAction extends Action{
-    public GetAction(List<String> trigger, String subject){
+class GetAction extends Action {
+    public GetAction(List<String> trigger, String subject) {
         super(trigger, subject);
     }
 
-    public String actsOn(){
+    public String actsOn() {
         return this.subjects.stream().toList().get(0);
     }
 }
 
-class DropAction extends Action{
-    public DropAction(List<String> trigger, String subject){
+class DropAction extends Action {
+    public DropAction(List<String> trigger, String subject) {
         super(trigger, subject);
     }
 
-    public String actsOn(){
+    public String actsOn() {
         return this.subjects.stream().toList().get(0);
     }
 }
 
-class GotoAction extends Action{
-    public GotoAction(List<String> trigger, String subject){
+class GotoAction extends Action {
+    public GotoAction(List<String> trigger, String subject) {
         super(trigger, subject);
     }
 
-    public String actsOn(){
+    public String actsOn() {
         return this.subjects.stream().toList().get(0);
     }
 }
 
-class LookAction extends Action{
-    public LookAction(List<String> trigger, String subject){
+class LookAction extends Action {
+    public LookAction(List<String> trigger, String subject) {
+        super(trigger, subject);
+    }
+}
+
+class HealthAction extends Action {
+    public HealthAction(List<String> trigger, String subject) {
         super(trigger, subject);
     }
 }
