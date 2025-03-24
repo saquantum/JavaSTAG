@@ -4,7 +4,9 @@ import com.alexmerz.graphviz.objects.Edge;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class Controller {
     // In document, no Action type variables. In actions, no Entity type variables. Controller is the bridge.
@@ -52,20 +54,23 @@ public class Controller {
             if (this.document.hasEntity(word) || this.document.hasLocation(word)) entities.add(word);
         }
 
-        List<Action> possibleActions = new LinkedList<>();
+        Map<Integer, Action> possibleActions = new HashMap<>();
 
         // find possible actions by trigger
         for (int i = 0; i < words.size(); i++) {
             if (this.actions.mightBeAction(words.get(i))) {
-                possibleActions.addAll(this.actions.possibleActions(words.subList(i, words.size()), entities));
+                List<Action> list = this.actions.possibleActions(words.subList(i, words.size()), entities);
+                for (Action action : list) {
+                    possibleActions.put(action.getIdentifier(), action);
+                }
             }
         }
 
         // loop through possible actions to check subjects
-        possibleActions.removeIf(new Predicate<Action>() {
+        possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
             @Override
-            public boolean test(Action action) {
-                return !action.checkSubjects(entities);
+            public boolean test(Map.Entry<Integer, Action> entry) {
+                return !entry.getValue().checkSubjects(entities);
             }
         });
 
@@ -79,7 +84,7 @@ public class Controller {
         }
 
         // only one possible action is left
-        Action action = possibleActions.get(0);
+        Action action = possibleActions.entrySet().stream().toList().get(0).getValue();
 
         // check subjects must be in player's inventory or in current location
         // if subject is location, there must be a path to that location

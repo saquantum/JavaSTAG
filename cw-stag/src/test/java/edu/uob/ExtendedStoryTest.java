@@ -74,9 +74,7 @@ public class ExtendedStoryTest {
 
         // this should be valid since them all points to one action!!!!!!!!!!
         sendCommandToServer("simon: cut and cut down and chop the tree with axe");
-        // ---------------------
-
-        sendCommandToServer("simon: cut down the tree");
+        assertRejectCommand(sendCommandToServer("simon: cut down the tree"));
         sendCommandToServer("simon: get log");
         response = sendCommandToServer("simon: inv");
         assertTrue(response.contains("log"));
@@ -86,11 +84,8 @@ public class ExtendedStoryTest {
         response = sendCommandToServer("sion: look");
         assertFalse(response.contains("cellar"));
 
-        // ---------------------------
         sendCommandToServer("simon: open and unlock the trapdoor");
-        // -------------------------------
-
-        sendCommandToServer("simon: use my key to open the door");
+        assertRejectCommand(sendCommandToServer("simon: use my key to open the door"));
         response = sendCommandToServer("sion: look");
         assertTrue(response.contains("cellar"));
 

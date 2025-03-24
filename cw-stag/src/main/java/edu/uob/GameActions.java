@@ -114,6 +114,9 @@ public class GameActions {
                 this.insertIntoTable(firstWord, actionObject);
             }
         }
+        for (int i = 0; i < this.customizedActions.size(); i++) {
+            this.customizedActions.get(i).setIdentifier(i);
+        }
     }
 
     private void insertIntoTable(String firstWord, Action actionObject) {
@@ -142,8 +145,9 @@ class Action {
     protected final Set<String> subjects = new HashSet<>();
     protected final Set<String> consumed = new HashSet<>();
     protected final Set<String> produced = new HashSet<>();
-
     protected String narration;
+
+    protected int identifier; // to filter out duplicate actions
 
     public Action() {
     }
@@ -152,6 +156,14 @@ class Action {
     public Action(List<String> trigger, String subject) {
         this.putTrigger(trigger);
         this.addSubject(subject);
+    }
+
+    public int getIdentifier() {
+        return identifier;
+    }
+
+    public void setIdentifier(int identifier) {
+        this.identifier = identifier;
     }
 
     public void putTrigger(List<String> phrase) {
@@ -251,6 +263,10 @@ class Action {
         return true;
     }
 
+    public boolean equals(Action that){
+        return this.getIdentifier() == that.getIdentifier();
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
@@ -293,12 +309,14 @@ class Action {
 class InvAction extends Action {
     public InvAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -1;
     }
 }
 
 class GetAction extends Action {
     public GetAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -2;
     }
 
     public String actsOn() {
@@ -309,6 +327,7 @@ class GetAction extends Action {
 class DropAction extends Action {
     public DropAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -3;
     }
 
     public String actsOn() {
@@ -319,6 +338,7 @@ class DropAction extends Action {
 class GotoAction extends Action {
     public GotoAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -4;
     }
 
     public String actsOn() {
@@ -329,11 +349,13 @@ class GotoAction extends Action {
 class LookAction extends Action {
     public LookAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -5;
     }
 }
 
 class HealthAction extends Action {
     public HealthAction(List<String> trigger, String subject) {
         super(trigger, subject);
+        this.identifier = -6;
     }
 }
