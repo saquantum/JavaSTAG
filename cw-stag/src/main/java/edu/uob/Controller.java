@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.function.Predicate;
 
 public class Controller {
+    // In document, no Action type variables. In actions, no Entity type variables. Controller is the bridge.
     private final Document document;
     private final GameActions actions;
 
@@ -144,16 +145,18 @@ public class Controller {
             if (!(this.document.getEntity(itemName) instanceof Artefact)) {
                 return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to collect is not an artefact!").toString();
             }
-            GameEntity item = player.getCurrent().removeItem(itemName);
+            MovableEntity item = player.getCurrent().removeItem(itemName);
             this.document.getLocation("storeroom").addItem(item);
-            player.insert((Artefact) item);
+            player.insertItem((Artefact) item);
+            ((Artefact) item).setOwner(player);
             action.setNarration(new StringBuilder().append("You picked up the ").append(itemName).toString());
         } else if (action instanceof DropAction) {
             // move the artefact from storeroom to player's location and delete its record
             String itemName = ((DropAction) action).actsOn();
             this.document.getLocation("storeroom").removeItem(itemName);
-            Artefact item = player.remove(itemName);
+            Artefact item = player.removeItem(itemName);
             player.getCurrent().addItem(item);
+            item.setOwner(null);
             action.setNarration(new StringBuilder().append("You dropped the ").append(itemName).toString());
         } else if (action instanceof GotoAction) {
             String locationName = ((GotoAction) action).actsOn();
@@ -182,7 +185,7 @@ public class Controller {
         // if player died:
         if (player.getHealth() == 0) {
             for (Artefact item : player.listInventory()) {
-                player.remove(item.getName());
+                player.removeItem(item.getName());
                 player.getCurrent().addItem(item);
             }
             player.setCurrent(this.document.getLocation(0));
@@ -207,7 +210,7 @@ public class Controller {
         }
 
         // consume other entity: move it from its location to storeroom
-        GameEntity item = ((Movable) this.document.getEntity(entity)).getCurrent().removeItem(entity);
+        MovableEntity item = ((MovableEntity) this.document.getEntity(entity)).getCurrent().removeItem(entity);
         this.document.getLocation("storeroom").addItem(item);
     }
 
@@ -225,7 +228,7 @@ public class Controller {
         }
 
         // produce other entity: move it from its location to current location
-        GameEntity item = ((Movable) this.document.getEntity(entity)).getCurrent().removeItem(entity);
+        MovableEntity item = ((MovableEntity) this.document.getEntity(entity)).getCurrent().removeItem(entity);
         currentLocation.addItem(item);
     }
 }
