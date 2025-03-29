@@ -21,21 +21,4 @@ public class Util {
 
         return true;
     }
-
-    public static Edge newEdge(String from, String to) {
-        Id sourceId = new Id();
-        sourceId.setId(from);
-        Node sourceNode = new Node();
-        sourceNode.setId(sourceId);
-
-        Id targetId = new Id();
-        targetId.setId(to);
-        Node targetNode = new Node();
-        targetNode.setId(targetId);
-
-        Edge e = new Edge();
-        e.setSource(new PortNode(sourceNode));
-        e.setTarget(new PortNode(targetNode));
-        return e;
-    }
 }

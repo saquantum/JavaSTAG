@@ -66,6 +66,22 @@ digraph layout {
     }
     }
 
+    subgraph cluster006 {
+    node [shape = "none"];
+    lab [description = "Use lab machines"]
+    }
+
+    subgraph cluster007 {
+    node [shape = "none"];
+    labmachine [description = "should be linux"]
+    subgraph furniture {
+    node [shape = "hexagon"];
+    linux [description = "linux system"];
+    windows [description = "windows system" version = "11"];
+    }
+    }
+
+
     subgraph cluster998 {
     node [shape = "none"];
     storeroom0 [description = "Storage for any entities not placed in the game"]
@@ -94,6 +110,9 @@ digraph layout {
     forest -> riverbank
     riverbank -> forest
     clearing -> riverbank
+    riverbank -> lab;
+    lab -> labmachine;
+    labmachine -> lab;
     }
 
 }

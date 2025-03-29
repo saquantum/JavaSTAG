@@ -35,6 +35,38 @@
     <action>
         <triggers>
             <keyphrase>open</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+        </subjects>
+        <consumed>
+
+        </consumed>
+        <produced>
+            <entity>forest</entity>
+        </produced>
+        <narration>Open way to forest</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>close</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+        </subjects>
+        <consumed>
+            <entity>forest</entity>
+        </consumed>
+        <produced>
+
+        </produced>
+        <narration>Close way to forest</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>open</keyphrase>
             <keyphrase>unlock</keyphrase>
         </triggers>
         <subjects>
@@ -71,18 +103,68 @@
 
     <action>
         <triggers>
-            <keyphrase>drink</keyphrase>
+            <keyphrase>drink poison</keyphrase>
         </triggers>
         <subjects>
             <entity>potion</entity>
         </subjects>
         <consumed>
+            <entity>health</entity>
+        </consumed>
+        <produced>
+
+        </produced>
+        <narration>poison potion</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>drink double   poison</keyphrase>
+        </triggers>
+        <subjects>
             <entity>potion</entity>
+        </subjects>
+        <consumed>
+            <entity>health</entity>
+            <entity>health</entity>
+        </consumed>
+        <produced>
+
+        </produced>
+        <narration>double poison potion</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>drink   healing</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+
         </consumed>
         <produced>
             <entity>health</entity>
         </produced>
-        <narration>You drink the potion and your health improves</narration>
+        <narration>healing potion</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>drink   double  healing</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+
+        </consumed>
+        <produced>
+            <entity>health</entity>
+            <entity>health</entity>
+        </produced>
+        <narration>double healing potion</narration>
     </action>
 
     <action>

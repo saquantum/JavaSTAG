@@ -16,7 +16,7 @@ public class Document {
     private int vertices = 0;
     private final Map<Integer, Location> locations = new HashMap<>();
     private final Map<String, Integer> reverseLocations = new HashMap<>();
-    private final Map<String, List<Edge>> adj = new HashMap<>();
+    private final Map<String, List<String>> adj = new HashMap<>();
 
     private final Map<String, GameEntity> allEntities = new HashMap<>();
 
@@ -55,44 +55,43 @@ public class Document {
         return this.locations.get(index);
     }
 
-    public void addEdge(Edge e) throws MyExceptions {
-        String from = e.getSource().getNode().getId().getId().toLowerCase();
-        String to = e.getTarget().getNode().getId().getId().toLowerCase();
+    public void addEdge(String from, String to) throws MyExceptions {
         if (!this.hasLocation(from) || !this.hasLocation(to)) {
             throw new MyExceptions.InvalidEdgeException();
         }
 
-        List<Edge> list = this.adj.get(from);
+        List<String> list = this.adj.get(from);
         if (list == null) {
             list = new LinkedList<>();
         }
-        list.add(e);
+        list.add(to);
         this.adj.put(from, list);
     }
 
-    public Edge removeEdge(String from, String to) {
-        if (!this.adj.containsKey(from)) return null;
+    public boolean removeEdge(String from, String to) {
+        if (!this.adj.containsKey(from)) return false;
 
-        for (Edge edge : this.adj.get(from)) {
-            if (edge.getTarget().getNode().getId().getId().equals(to)) {
-                this.adj.get(from).remove(edge);
-                return edge;
-            }
-        }
-        return null;
-    }
-
-    public boolean hasEdge(String from, String to) {
-        if (!this.hasLocation(from)) return false;
-        for (Edge edge : this.adj.get(from)) {
-            if (edge.getTarget().getNode().getId().getId().equals(to)) {
+        for (String dest : this.adj.get(from)) {
+            if (dest.equals(to)) {
+                this.adj.get(from).remove(to);
                 return true;
             }
         }
         return false;
     }
 
-    public List<Edge> getEdgesFrom(String from) {
+    public boolean hasEdge(String from, String to) {
+        if (!this.hasLocation(from)) return false;
+        if (!this.adj.containsKey(from)) return false;
+        for (String dest : this.adj.get(from)) {
+            if (dest.equals(to)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<String> getEdgesFrom(String from) {
         return this.adj.get(from.toLowerCase());
     }
 
@@ -123,13 +122,10 @@ public class Document {
         for (int i = 0; i < this.vertices; i++) {
             sb.append(locations.get(i).toString());
         }
-        for (Map.Entry<String, List<Edge>> entry : this.adj.entrySet()) {
-            for (Edge edge : entry.getValue()) {
-                sb
-                        .append(edge.getSource().getNode().getId().getId())
-                        .append(" -> ")
-                        .append(edge.getTarget().getNode().getId().getId())
-                        .append(System.lineSeparator());
+        for (Map.Entry<String, List<String>> entry : this.adj.entrySet()) {
+            String from = entry.getKey();
+            for (String to : entry.getValue()) {
+                sb.append(from).append(" -> ").append(to).append(System.lineSeparator());
             }
         }
         return sb.toString();
@@ -206,7 +202,9 @@ public class Document {
         }
         List<Edge> edges = pathGraph.getEdges();
         if (edges != null && edges.size() > 0) {
-            edges.forEach(this::addEdge);
+            for (Edge edge : edges) {
+                this.addEdge(edge.getSource().getNode().getId().getId(), edge.getTarget().getNode().getId().getId());
+            }
         }
     }
 

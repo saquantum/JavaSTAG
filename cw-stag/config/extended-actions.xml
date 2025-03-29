@@ -137,4 +137,51 @@
         <narration>You blow the horn and as if by magic, a lumberjack appears !</narration>
     </action>
 
+    <action>
+        <triggers>
+            <keyphrase>destroy</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+            <entity>coin</entity>
+        </subjects>
+        <consumed>
+            <entity>forest</entity>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>Path to forest is destroyed</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>attack</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+            <entity>health</entity>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>Poisoned potion</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>heal</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+
+        </consumed>
+        <produced>
+            <entity>health</entity>
+        </produced>
+        <narration>Healing potion</narration>
+    </action>
+
 </actions>

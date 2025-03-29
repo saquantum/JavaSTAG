@@ -46,4 +46,10 @@ public class MyExceptions extends RuntimeException{
             super("Duplicate name for entities!");
         }
     }
+
+    public static class InvalidBasicAction extends MyExceptions {
+        public InvalidBasicAction() {
+            super("Invalid usage of basic action!");
+        }
+    }
 }

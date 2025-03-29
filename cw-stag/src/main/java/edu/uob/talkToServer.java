@@ -6,8 +6,8 @@ import java.util.Scanner;
 
 public class talkToServer {
     public static void main(String[] args){
-        File entitiesFile = Paths.get("config" + File.separator + "extended-entities.dot").toAbsolutePath().toFile();
-        File actionsFile = Paths.get("config" + File.separator + "extended-actions.xml").toAbsolutePath().toFile();
+        File entitiesFile = Paths.get("config" + File.separator + "my-entities.dot").toAbsolutePath().toFile();
+        File actionsFile = Paths.get("config" + File.separator + "my-actions.xml").toAbsolutePath().toFile();
         GameServer server = new GameServer(entitiesFile, actionsFile);
 
         Scanner scanner = new Scanner(System.in);

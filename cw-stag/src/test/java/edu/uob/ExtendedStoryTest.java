@@ -23,13 +23,13 @@ public class ExtendedStoryTest {
         return assertTimeoutPreemptively(Duration.ofMillis(5000), () -> server.handleCommand(command));
     }
 
-    void assertRejectCommand(String command) {
-        String response = sendCommandToServer(command).toLowerCase();
-        assertTrue(response.contains("error") || response.contains("reject") || response.contains("not")
+    void assertRejectCommand(String response) {
+        response = response.toLowerCase();
+        assertTrue(response.contains("error") || response.contains("reject") || response.contains("cannot")
                 || response.contains("can't") || response.contains("cant") || response.contains("don't")
                 || response.contains("dont") || response.contains("unknown") || response.contains("recogni")
                 || response.contains("invalid") || response.contains("refuse") || response.contains("unauthori")
-                || response.contains("unreachable"));
+                || response.contains("unreachable") || response.contains("do not"));
     }
 
     @Test
@@ -42,7 +42,7 @@ public class ExtendedStoryTest {
 
         assertRejectCommand(sendCommandToServer("simon: get trapdoor"));
         assertRejectCommand(sendCommandToServer("simon: get key"));
-        assertRejectCommand("simon: get");
+        assertRejectCommand(sendCommandToServer("simon: get"));
 
         sendCommandToServer("simon: get potion and axe");
         response = sendCommandToServer("simon: inv");
@@ -116,7 +116,7 @@ public class ExtendedStoryTest {
         sendCommandToServer("sion: drink simon's potion");
         response = sendCommandToServer("sion: health");
         assertTrue(response.contains("2"));
-        assertRejectCommand("sion: get elf");
+        assertRejectCommand(sendCommandToServer("sion: get elf"));
 
         sendCommandToServer("simon: get coin");
         sendCommandToServer("simon: goto cellar");

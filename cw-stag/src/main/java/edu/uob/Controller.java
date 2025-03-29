@@ -50,10 +50,10 @@ public class Controller {
         // remove punctuations from the command
         StringBuilder filteringPunctuation = new StringBuilder();
         for (int i = 0; i < command.length(); i++) {
-            if(String.valueOf(command.charAt(i)).matches("[a-zA-Z\\s]")){
+            if (String.valueOf(command.charAt(i)).matches("[a-zA-Z\\s]")) {
                 filteringPunctuation.append(command.charAt(i));
-            }else{
-                if(i > 0 && java.lang.Character.isLetter(command.charAt(i - 1)) &&  i < command.length() - 1 && java.lang.Character.isLetter(command.charAt(i + 1))){
+            } else {
+                if (i > 0 && java.lang.Character.isLetter(command.charAt(i - 1)) && i < command.length() - 1 && java.lang.Character.isLetter(command.charAt(i + 1))) {
                     filteringPunctuation.append(command.charAt(i));
                 }
             }
@@ -82,12 +82,16 @@ public class Controller {
         }
 
         // loop through possible actions to check subjects
-        possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
-            @Override
-            public boolean test(Map.Entry<Integer, Action> entry) {
-                return !entry.getValue().checkSubjects(entities);
-            }
-        });
+        try {
+            possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
+                @Override
+                public boolean test(Map.Entry<Integer, Action> entry) {
+                    return !entry.getValue().checkSubjects(entities);
+                }
+            });
+        } catch (MyExceptions e) {
+            return new StringBuilder().append("[ERROR]: ").append(e.getMessage()).toString();
+        }
 
         if (possibleActions.isEmpty()) {
             return "[ERROR]: I can't recognize this command.";
@@ -142,14 +146,18 @@ public class Controller {
         } else if (action instanceof LookAction) {
             StringBuilder sb = new StringBuilder();
             sb.append("Description to current location: ").append(player.getCurrent().getDescription()).append(System.lineSeparator());
-            sb.append("You have access to these locations:").append(System.lineSeparator());
-            for (Edge edge : this.document.getEdgesFrom(player.getCurrent().getName())) {
-                sb.append("  ").append(edge.getTarget().getNode().getId().getId()).append(" ");
+            if (this.document.getEdgesFrom(player.getCurrent().getName()) != null) {
+                sb.append("You have access to these locations:").append(System.lineSeparator());
+                for (String to : this.document.getEdgesFrom(player.getCurrent().getName())) {
+                    sb.append("  ").append(to).append(" ");
+                }
+            }else{
+                sb.append("You have no access to other locations.");
             }
             sb.append(System.lineSeparator());
             sb.append("These game entities can be found here:").append(System.lineSeparator());
             for (GameEntity item : player.getCurrent().listItems()) {
-                sb.append("  ").append(item.getName()).append(": ").append(item.getDescription()).append(System.lineSeparator());
+                sb.append(item.toString()).append(System.lineSeparator());
             }
             sb.append("Other players here:").append(System.lineSeparator());
             for (Map.Entry<String, Player> entry : this.document.getPlayers().entrySet()) {
@@ -158,39 +166,64 @@ public class Controller {
                 }
             }
             action.setNarration(sb.toString());
+        } else if (action instanceof HealthAction) {
+            action.setNarration(new StringBuilder().append("Player ").append(player.getName()).append(" is of health ").append(player.getHealth()).toString());
         } else if (action instanceof GetAction) {
-            // move the artefact from current location to storeroom and record it in player's inventory
-            String itemName = ((GetAction) action).actsOn();
-            // ... but remember to check the item is indeed artefact
+            String itemName = entities.iterator().next();
+            // check the item is indeed artefact
             if (!(this.document.getEntity(itemName) instanceof Artefact)) {
                 return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to collect is not an artefact!").toString();
             }
+            // check item is at current location
+            if (((Artefact) this.document.getEntity(itemName)).getCurrent() != player.getCurrent()) {
+                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to collect is not at current location!").toString();
+            }
+            // transfer the artefact from current location to storeroom
             MovableEntity item = player.getCurrent().removeItem(itemName);
             this.document.getLocation("storeroom").addItem(item);
+            // set the location of artefact to be storeroom
+            item.setCurrent(this.document.getLocation("storeroom"));
+            // record the artefact in player's inventory
             player.insertItem((Artefact) item);
             ((Artefact) item).setOwner(player);
+            // set output string
             action.setNarration(new StringBuilder().append("You picked up the ").append(itemName).toString());
         } else if (action instanceof DropAction) {
-            // move the artefact from storeroom to player's location and delete its record
-            String itemName = ((DropAction) action).actsOn();
-            this.document.getLocation("storeroom").removeItem(itemName);
-            Artefact item = player.removeItem(itemName);
+            String itemName = entities.iterator().next();
+            // check the item is indeed artefact
+            if (!(this.document.getEntity(itemName) instanceof Artefact)) {
+                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop is not an artefact!").toString();
+            }
+            // check the artefact can be found in player's inventory and storeroom
+            if (!player.hasItem(itemName)) {
+                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop cannot be found in player's inventory!").toString();
+            }
+            if (!this.document.getLocation("storeroom").hasItem(itemName)) {
+                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop cannot be found!").toString();
+            }
+            // remove artefact from inventory
+            player.removeItem(itemName);
+            // remove artefact from storeroom
+            Artefact item = (Artefact) this.document.getLocation("storeroom").removeItem(itemName);
+            // put artefact to location
             player.getCurrent().addItem(item);
+            // reset artefact owner
             item.setOwner(null);
+            // set artefact current location
+            item.setCurrent(player.getCurrent());
+            // set output string
             action.setNarration(new StringBuilder().append("You dropped the ").append(itemName).toString());
         } else if (action instanceof GotoAction) {
-            String locationName = ((GotoAction) action).actsOn();
+            String locationName = entities.iterator().next();
             Location location = this.document.getLocation(locationName);
             // check target location is indeed a location
             if (location == null)
                 return new StringBuilder().append(locationName).append(" is not a valid location!").toString();
             // check there is a path from current location to that location
             if (!this.document.hasEdge(player.getCurrent().getName(), locationName))
-                return "No direct path to that location!";
+                return "[ERROR]: No direct path to that location!";
             player.setCurrent(location);
             action.setNarration(new StringBuilder().append("Arrived at new location: ").append(locationName).toString());
-        } else if (action instanceof HealthAction) {
-            action.setNarration(new StringBuilder().append("Player ").append(player.getName()).append(" is of health ").append(player.getHealth()).toString());
         }
 
         // custom actions: consume and produce
@@ -205,12 +238,16 @@ public class Controller {
         // if player died:
         if (player.getHealth() == 0) {
             for (Artefact item : player.listInventory()) {
+                // set owner of artefact to null, remove artefact from storeroom, remove artefact from inventory, put artefact to location
+                item.setOwner(null);
+                item.getCurrent().removeItem(item.getName());
+                item.setCurrent(player.getCurrent());
                 player.removeItem(item.getName());
                 player.getCurrent().addItem(item);
             }
             player.setCurrent(this.document.getLocation(0));
             player.resetHealth();
-            return "You died and lost all items and teleported to the start location.";
+            return "You died and lost all items and are teleported to the start location.";
         }
 
         return action.getNarration();
@@ -232,12 +269,17 @@ public class Controller {
         // consume other entity: move it from its location to storeroom
         MovableEntity item = ((MovableEntity) this.document.getEntity(entity)).getCurrent().removeItem(entity);
         this.document.getLocation("storeroom").addItem(item);
+        // if it is owned by current player, remove it from player's inventory
+        if (item instanceof Artefact && ((Artefact) item).getOwner() == player) {
+            ((Artefact) item).setOwner(null);
+            player.removeItem(item.getName());
+        }
     }
 
     public void produceEntity(String entity, Location currentLocation, Player player) {
         // produce location: add a path
         if (this.document.hasLocation(entity)) {
-            this.document.addEdge(Util.newEdge(currentLocation.getName(), entity));
+            this.document.addEdge(currentLocation.getName(), entity);
             return;
         }
 
@@ -249,6 +291,12 @@ public class Controller {
 
         // produce other entity: move it from its location to current location
         MovableEntity item = ((MovableEntity) this.document.getEntity(entity)).getCurrent().removeItem(entity);
+        item.setCurrent(currentLocation);
         currentLocation.addItem(item);
+        // if it is owned by current player, remove it from player's inventory
+        if (item instanceof Artefact && ((Artefact) item).getOwner() == player) {
+            ((Artefact) item).setOwner(null);
+            player.removeItem(item.getName());
+        }
     }
 }

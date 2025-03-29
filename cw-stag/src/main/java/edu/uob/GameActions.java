@@ -43,19 +43,17 @@ public class GameActions {
 
         if (GameActions.builtInActions.contains(firstWord)) {
             if ("inv".equals(firstWord) || "inventory".equals(firstWord)) {
-                if (entities.isEmpty()) actions.add(new InvAction(List.of("inv"), null));
+                actions.add(new InvAction());
             } else if ("get".equals(firstWord)) {
-                if (entities.size() == 1) actions.add(new GetAction(List.of("get"), entities.stream().toList().get(0)));
+                actions.add(new GetAction());
             } else if ("drop".equals(firstWord)) {
-                if (entities.size() == 1)
-                    actions.add(new DropAction(List.of("drop"), entities.stream().toList().get(0)));
+                actions.add(new DropAction());
             } else if ("goto".equals(firstWord)) {
-                if (entities.size() == 1)
-                    actions.add(new GotoAction(List.of("goto"), entities.stream().toList().get(0)));
+                actions.add(new GotoAction());
             } else if ("look".equals(firstWord)) {
-                if (entities.isEmpty()) actions.add(new LookAction(List.of("look"), null));
+                actions.add(new LookAction());
             } else if ("health".equals(firstWord)) {
-                if (entities.isEmpty()) actions.add(new HealthAction(List.of("health"), null));
+                actions.add(new HealthAction());
             }
         }
 
@@ -86,27 +84,10 @@ public class GameActions {
             Element action = (Element) actions.item(i);
             Action actionObject = new Action();
 
-            NodeList triggers = ((Element) action.getElementsByTagName("triggers").item(0)).getElementsByTagName("keyphrase");
-            for (int j = 0; j < triggers.getLength(); j++) {
-                String triggerPhrase = triggers.item(j).getTextContent();
-                List<String> phrase = Arrays.stream(triggerPhrase.split("\\s+")).toList();
-                actionObject.putTrigger(phrase);
-            }
-            NodeList subjects = ((Element) action.getElementsByTagName("subjects").item(0)).getElementsByTagName("entity");
-            for (int j = 0; j < subjects.getLength(); j++) {
-                String subject = subjects.item(j).getTextContent();
-                actionObject.addSubject(subject);
-            }
-            NodeList consumed = ((Element) action.getElementsByTagName("consumed").item(0)).getElementsByTagName("entity");
-            for (int j = 0; j < consumed.getLength(); j++) {
-                String consume = consumed.item(j).getTextContent();
-                actionObject.addConsumed(consume);
-            }
-            NodeList produced = ((Element) action.getElementsByTagName("produced").item(0)).getElementsByTagName("entity");
-            for (int j = 0; j < produced.getLength(); j++) {
-                String produce = produced.item(j).getTextContent();
-                actionObject.addProduced(produce);
-            }
+            this.getTriggerElements(action, actionObject);
+            this.getEntityElements(action, actionObject, "subjects");
+            this.getEntityElements(action, actionObject, "consumed");
+            this.getEntityElements(action, actionObject, "produced");
             actionObject.setNarration(action.getElementsByTagName("narration").item(0).getTextContent());
 
             this.customizedActions.add(actionObject);
@@ -119,6 +100,25 @@ public class GameActions {
         }
     }
 
+    private void getTriggerElements(Element action, Action actionObject) {
+        NodeList triggers = ((Element) action.getElementsByTagName("triggers").item(0)).getElementsByTagName("keyphrase");
+        for (int j = 0; j < triggers.getLength(); j++) {
+            String triggerPhrase = triggers.item(j).getTextContent();
+            List<String> phrase = Arrays.stream(triggerPhrase.split("\\s+")).toList();
+            actionObject.putTrigger(phrase);
+        }
+    }
+
+    private void getEntityElements(Element action, Action actionObject, String tagName) {
+        NodeList entities = ((Element) action.getElementsByTagName(tagName).item(0)).getElementsByTagName("entity");
+        for (int j = 0; j < entities.getLength(); j++) {
+            String item = entities.item(j).getTextContent();
+            if ("subjects".equals(tagName)) actionObject.addSubject(item);
+            else if ("consumed".equals(tagName)) actionObject.addConsumed(item);
+            else if ("produced".equals(tagName)) actionObject.addProduced(item);
+        }
+    }
+
     private void insertIntoTable(String firstWord, Action actionObject) {
         List<Action> list = new LinkedList<>();
         if (this.lookupActions.containsKey(firstWord)) {
@@ -126,6 +126,13 @@ public class GameActions {
         }
         list.add(actionObject);
         this.lookupActions.put(firstWord, list);
+    }
+
+    public static boolean isBasicAction(Action action) {
+        if (action instanceof InvAction || action instanceof GetAction || action instanceof DropAction || action instanceof GotoAction || action instanceof LookAction || action instanceof HealthAction) {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -143,8 +150,8 @@ class Action {
      */
     protected final Map<String, List<List<String>>> triggers = new HashMap<>();
     protected final Set<String> subjects = new HashSet<>();
-    protected final Set<String> consumed = new HashSet<>();
-    protected final Set<String> produced = new HashSet<>();
+    protected final List<String> consumed = new LinkedList<>();
+    protected final List<String> produced = new LinkedList<>();
     protected String narration;
 
     protected int identifier; // to filter out duplicate actions
@@ -191,11 +198,11 @@ class Action {
         return this.subjects;
     }
 
-    public Set<String> getConsumed() {
+    public List<String> getConsumed() {
         return this.consumed;
     }
 
-    public Set<String> getProduced() {
+    public List<String> getProduced() {
         return this.produced;
     }
 
@@ -241,8 +248,13 @@ class Action {
         return false;
     }
 
-    public boolean checkSubjects(Set<String> candidates) {
-        if (this instanceof InvAction || this instanceof GetAction || this instanceof DropAction || this instanceof GotoAction || this instanceof LookAction || this instanceof HealthAction) {
+    public boolean checkSubjects(Set<String> candidates) throws MyExceptions {
+        if(this instanceof InvAction || this instanceof LookAction || this instanceof HealthAction){
+            if(candidates.size() != 0) throw new MyExceptions.InvalidBasicAction();
+            return true;
+        }
+        if(this instanceof GotoAction || this instanceof GetAction || this instanceof DropAction){
+            if(candidates.size() != 1) throw new MyExceptions.InvalidBasicAction();
             return true;
         }
         // Partial command: candidates contains at least one subject
@@ -263,7 +275,7 @@ class Action {
         return true;
     }
 
-    public boolean equals(Action that){
+    public boolean equals(Action that) {
         return this.getIdentifier() == that.getIdentifier();
     }
 
@@ -307,15 +319,13 @@ class Action {
 }
 
 class InvAction extends Action {
-    public InvAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public InvAction() {
         this.identifier = -1;
     }
 }
 
 class GetAction extends Action {
-    public GetAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public GetAction() {
         this.identifier = -2;
     }
 
@@ -325,8 +335,7 @@ class GetAction extends Action {
 }
 
 class DropAction extends Action {
-    public DropAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public DropAction() {
         this.identifier = -3;
     }
 
@@ -336,8 +345,7 @@ class DropAction extends Action {
 }
 
 class GotoAction extends Action {
-    public GotoAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public GotoAction() {
         this.identifier = -4;
     }
 
@@ -347,15 +355,13 @@ class GotoAction extends Action {
 }
 
 class LookAction extends Action {
-    public LookAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public LookAction() {
         this.identifier = -5;
     }
 }
 
 class HealthAction extends Action {
-    public HealthAction(List<String> trigger, String subject) {
-        super(trigger, subject);
+    public HealthAction() {
         this.identifier = -6;
     }
 }
