@@ -24,7 +24,7 @@ public class ExtendedStoryTest {
     }
 
     void assertRejectCommand(String command) {
-        String response = sendCommandToServer(command);
+        String response = sendCommandToServer(command).toLowerCase();
         assertTrue(response.contains("error") || response.contains("reject") || response.contains("not")
                 || response.contains("can't") || response.contains("cant") || response.contains("don't")
                 || response.contains("dont") || response.contains("unknown") || response.contains("recogni")

@@ -25,15 +25,17 @@ public class Controller {
         List<String> seg = Arrays.stream(command.split(":", 2)).toList();
         if (seg.size() == 2) {
             String playerName = seg.get(0);
+            // check player name does not include invalid chars
             for (int i = 0; i < playerName.length(); i++) {
                 if (!java.lang.Character.isLetter(playerName.charAt(i)) && playerName.charAt(i) != ' ' && playerName.charAt(i) != '\'' && playerName.charAt(i) != '-') {
                     return "[ERROR]: invalid player name!";
                 }
-                if (this.document.getPlayers().containsKey(playerName)) {
-                    player = this.document.getPlayers().get(playerName);
-                } else {
-                    player = this.document.newPlayer(playerName);
-                }
+            }
+            // if player exists already, use it, otherwise create it
+            if (this.document.getPlayers().containsKey(playerName)) {
+                player = this.document.getPlayers().get(playerName);
+            } else {
+                player = this.document.newPlayer(playerName);
             }
             command = seg.get(1);
         }
@@ -44,6 +46,19 @@ public class Controller {
         }
 
         if (player == null) return "[ERROR]: The server's logic is broken and cannot find a valid player?";
+
+        // remove punctuations from the command
+        StringBuilder filteringPunctuation = new StringBuilder();
+        for (int i = 0; i < command.length(); i++) {
+            if(String.valueOf(command.charAt(i)).matches("[a-zA-Z\\s]")){
+                filteringPunctuation.append(command.charAt(i));
+            }else{
+                if(i > 0 && java.lang.Character.isLetter(command.charAt(i - 1)) &&  i < command.length() - 1 && java.lang.Character.isLetter(command.charAt(i + 1))){
+                    filteringPunctuation.append(command.charAt(i));
+                }
+            }
+        }
+        command = filteringPunctuation.toString();
 
         // split commands by white space
         List<String> words = Arrays.stream(command.toLowerCase().split("\\s+")).toList();
@@ -74,7 +89,7 @@ public class Controller {
             }
         });
 
-        if (possibleActions.size() == 0) {
+        if (possibleActions.isEmpty()) {
             return "[ERROR]: I can't recognize this command.";
         }
 
