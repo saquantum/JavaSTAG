@@ -1,12 +1,10 @@
 package edu.uob;
 
-import com.alexmerz.graphviz.objects.Edge;
-
 import java.io.File;
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
+
+// [kj24716@it106252 cw-stag]$ ./mvnw clean test -Dtest=edu.uob.MyTests
 
 public class Controller {
     // In document, no Action type variables. In actions, no Entity type variables. Controller is the bridge.
@@ -18,36 +16,73 @@ public class Controller {
         this.actions = new GameActions(actionsFile);
     }
 
-    public String handleCommand(String command) {
-
+    public String handleCommand(String command) throws MyExceptions {
         // process player name
+        AbstractMap.SimpleEntry<String, Player> result = this.processPlayer(command);
+        command = result.getKey();
+        Player player = result.getValue();
+
+        // remove punctuations and split commands by white space
+        List<String> words = Arrays.stream(this.removeCommandPunctuations(command).toLowerCase().split("\\s+")).toList();
+
+        // extract all entities
+        Set<String> entities = new HashSet<>();
+        for (String word : words) {
+            if (this.document.hasEntity(word) || this.document.hasLocation(word)) {
+                entities.add(word);
+            }
+        }
+
+        Action action = this.processActions(words, entities).entrySet().stream().toList().get(0).getValue();
+        this.checkCustomActions(action, player);
+        this.handleCommandActions(action, player, entities);
+
+        // if player died:
+        if (player.getHealth() == 0) {
+            return this.processPlayerDeath(player);
+        }
+        return action.getNarration();
+    }
+
+    private String processPlayerDeath(Player player) {
+        for (Artefact item : player.listInventory()) {
+            // set owner of artefact to null, remove artefact from storeroom, remove artefact from inventory, put artefact to location
+            item.setOwner(null);
+            item.getCurrent().removeItem(item.getName());
+            item.setCurrent(player.getCurrent());
+            player.removeItem(item.getName());
+            player.getCurrent().addItem(item);
+        }
+        player.setCurrent(this.document.getLocation(0));
+        player.resetHealth();
+        return "You died and lost all items and are teleported to the start location.";
+    }
+
+    private AbstractMap.SimpleEntry<String, Player> processPlayer(String command) throws MyExceptions {
         Player player = null;
         List<String> seg = Arrays.stream(command.split(":", 2)).toList();
-        if (seg.size() == 2) {
-            String playerName = seg.get(0);
-            // check player name does not include invalid chars
-            for (int i = 0; i < playerName.length(); i++) {
-                if (!java.lang.Character.isLetter(playerName.charAt(i)) && playerName.charAt(i) != ' ' && playerName.charAt(i) != '\'' && playerName.charAt(i) != '-') {
-                    return "[ERROR]: invalid player name!";
-                }
-            }
-            // if player exists already, use it, otherwise create it
-            if (this.document.getPlayers().containsKey(playerName)) {
-                player = this.document.getPlayers().get(playerName);
-            } else {
-                player = this.document.newPlayer(playerName);
-            }
-            command = seg.get(1);
-        }
-        // no player name specified, try to fetch the default player, if unable then create
-        else {
-            player = this.document.getPlayers().get("player$default");
-            if (player == null) player = this.document.newPlayer("player$default");
-        }
+        if (seg.size() != 2) throw new MyExceptions.InvalidCommandException("[ERROR]: Player name not specified!");
 
-        if (player == null) return "[ERROR]: The server's logic is broken and cannot find a valid player?";
+        String playerName = seg.get(0);
+        // check player name does not include invalid chars
+        for (int i = 0; i < playerName.length(); i++) {
+            if (!java.lang.Character.isLetter(playerName.charAt(i)) && playerName.charAt(i) != ' ' && playerName.charAt(i) != '\'' && playerName.charAt(i) != '-') {
+                throw new MyExceptions.InvalidCommandException("[ERROR]: invalid player name!");
+            }
+        }
+        // if player exists already, use it, otherwise create it
+        if (this.document.getPlayers().containsKey(playerName)) {
+            player = this.document.getPlayers().get(playerName);
+        } else {
+            player = this.document.newPlayer(playerName);
+        }
+        command = seg.get(1);
+        if (player == null)
+            throw new MyExceptions.InvalidCommandException("[ERROR]: The server's logic is broken and cannot find a valid player?");
+        return new AbstractMap.SimpleEntry<>(command, player);
+    }
 
-        // remove punctuations from the command
+    private String removeCommandPunctuations(String command) {
         StringBuilder filteringPunctuation = new StringBuilder();
         for (int i = 0; i < command.length(); i++) {
             if (String.valueOf(command.charAt(i)).matches("[a-zA-Z\\s]")) {
@@ -58,19 +93,11 @@ public class Controller {
                 }
             }
         }
-        command = filteringPunctuation.toString();
+        return filteringPunctuation.toString();
+    }
 
-        // split commands by white space
-        List<String> words = Arrays.stream(command.toLowerCase().split("\\s+")).toList();
-
-        // extract all entities
-        Set<String> entities = new HashSet<>();
-        for (String word : words) {
-            if (this.document.hasEntity(word) || this.document.hasLocation(word)) entities.add(word);
-        }
-
+    private Map<Integer, Action> processActions(List<String> words, Set<String> entities) throws MyExceptions {
         Map<Integer, Action> possibleActions = new HashMap<>();
-
         // find possible actions by trigger
         for (int i = 0; i < words.size(); i++) {
             if (this.actions.mightBeAction(words.get(i))) {
@@ -80,7 +107,6 @@ public class Controller {
                 }
             }
         }
-
         // loop through possible actions to check subjects
         try {
             possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
@@ -90,33 +116,33 @@ public class Controller {
                 }
             });
         } catch (MyExceptions e) {
-            return new StringBuilder().append("[ERROR]: ").append(e.getMessage()).toString();
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: ").append(e.getMessage()).toString());
         }
-
+        // no valid action found
         if (possibleActions.isEmpty()) {
-            return "[ERROR]: I can't recognize this command.";
+            throw new MyExceptions.InvalidCommandException("[ERROR]: I can't recognize this command.");
         }
-
         // Ambiguous commands
         if (possibleActions.size() > 1) {
-            return "[ERROR]: The command is too ambiguous and I don't understand what exactly you would like to perform.";
+            throw new MyExceptions.InvalidCommandException("[ERROR]: The command is too ambiguous and I don't understand what exactly you would like to perform.");
         }
-
         // only one possible action is left
-        Action action = possibleActions.entrySet().stream().toList().get(0).getValue();
+        return possibleActions;
+    }
 
-        // check subjects must be in player's inventory or in current location
-        // if subject is location, there must be a path to that location
+    private void checkCustomActions(Action action, Player player) throws MyExceptions {
         for (String subject : action.getSubjects()) {
             if (subject == null) continue;
+            // if subject is location, the player must be at that location
             if (this.document.hasLocation(subject)) {
-                if (!this.document.hasEdge(player.getCurrent().getName(), subject)) {
-                    return "[ERROR]: The target location is inaccessible from current location!";
+                if (!subject.equals(player.getCurrent().getName())) {
+                    throw new MyExceptions.InvalidCommandException("[ERROR]: The player is not at the subject location!");
                 }
                 continue;
             }
+            // check subjects must be in player's inventory or in current location
             if (!player.hasItem(subject) && !player.getCurrent().hasItem(subject)) {
-                return "[ERROR]: The item is not available to the player!";
+                throw new MyExceptions.InvalidCommandException("[ERROR]: The item is not available to the player!");
             }
         }
 
@@ -124,108 +150,131 @@ public class Controller {
         for (String consumed : action.getConsumed()) {
             GameEntity consumedObject = this.document.getEntity(consumed);
             if (consumedObject instanceof Artefact && ((Artefact) consumedObject).getOwner() != null && ((Artefact) consumedObject).getOwner() != player) {
-                return "[ERROR]: The item to be consumed is owned by another player!";
+                throw new MyExceptions.InvalidCommandException("[ERROR]: The item to be consumed is owned by another player!");
             }
         }
         for (String produced : action.getProduced()) {
             GameEntity producedObject = this.document.getEntity(produced);
             if (producedObject instanceof Artefact && ((Artefact) producedObject).getOwner() != null && ((Artefact) producedObject).getOwner() != player) {
-                return "[ERROR]: The item to be produced is owned by another player!";
+                throw new MyExceptions.InvalidCommandException("[ERROR]: The item to be produced is owned by another player!");
             }
         }
+    }
 
-        // perform the action
-        // basic actions: perform and add narration to action
+    private void handleInvAction(Player player, Action action) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(player.getName()).append("'s inventory has:").append(System.lineSeparator());
+        for (Artefact artefact : player.listInventory()) {
+            sb.append(artefact.getName()).append(" ");
+        }
+        action.setNarration(sb.toString());
+    }
+
+    private void handleLookAction(Player player, Action action) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Description to current location: ").append(player.getCurrent().getDescription()).append(System.lineSeparator());
+        if (this.document.getEdgesFrom(player.getCurrent().getName()) != null) {
+            sb.append("You have access to these locations:").append(System.lineSeparator());
+            for (String to : this.document.getEdgesFrom(player.getCurrent().getName())) {
+                sb.append("  ").append(to).append(" ");
+            }
+        } else {
+            sb.append("You have no access to other locations.");
+        }
+        sb.append(System.lineSeparator());
+        sb.append("These game entities can be found here:").append(System.lineSeparator());
+        for (GameEntity item : player.getCurrent().listItems()) {
+            sb.append(item.toString()).append(System.lineSeparator());
+        }
+        sb.append("Other players here:").append(System.lineSeparator());
+        for (Map.Entry<String, Player> entry : this.document.getPlayers().entrySet()) {
+            if (!entry.getKey().equals(player.getName()) && entry.getValue().getCurrent().equals(player.getCurrent())) {
+                sb.append(entry.getKey()).append(" ");
+            }
+        }
+        action.setNarration(sb.toString());
+    }
+
+    private void handleGetAction(Player player, Action action, String itemName) throws MyExceptions {
+        // check the item is indeed artefact
+        if (!(this.document.getEntity(itemName) instanceof Artefact)) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
+                    .append(itemName).append(" that you would like to collect is not an artefact!").toString());
+        }
+        // check item is at current location
+        if (((Artefact) this.document.getEntity(itemName)).getCurrent() != player.getCurrent()) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
+                    .append(itemName).append(" that you would like to collect is not at current location!").toString());
+        }
+        // transfer the artefact from current location to storeroom
+        MovableEntity item = player.getCurrent().removeItem(itemName);
+        this.document.getLocation("storeroom").addItem(item);
+        // set the location of artefact to be storeroom
+        item.setCurrent(this.document.getLocation("storeroom"));
+        // record the artefact in player's inventory
+        player.insertItem((Artefact) item);
+        ((Artefact) item).setOwner(player);
+        // set output string
+        action.setNarration(new StringBuilder().append("You picked up the ").append(itemName).toString());
+    }
+
+    private void handleDropCommand(Player player, Action action, String itemName) throws MyExceptions {
+        // check the item is indeed artefact
+        if (!(this.document.getEntity(itemName) instanceof Artefact)) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
+                    .append(itemName).append(" that you would like to drop is not an artefact!").toString());
+        }
+        // check the artefact can be found in player's inventory and storeroom
+        if (!player.hasItem(itemName)) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
+                    .append(itemName).append(" that you would like to drop cannot be found in player's inventory!").toString());
+        }
+        if (!this.document.getLocation("storeroom").hasItem(itemName)) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
+                    .append(itemName).append(" that you would like to drop cannot be found!").toString());
+        }
+        // remove artefact from inventory
+        player.removeItem(itemName);
+        // remove artefact from storeroom
+        Artefact item = (Artefact) this.document.getLocation("storeroom").removeItem(itemName);
+        // put artefact to location
+        player.getCurrent().addItem(item);
+        // reset artefact owner
+        item.setOwner(null);
+        // set artefact current location
+        item.setCurrent(player.getCurrent());
+        // set output string
+        action.setNarration(new StringBuilder().append("You dropped the ").append(itemName).toString());
+    }
+
+    private void handleGotoCommand(Player player, Action action, String locationName) throws MyExceptions {
+        Location location = this.document.getLocation(locationName);
+        // check target location is indeed a location
+        if (location == null)
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append(locationName).append(" is not a valid location!").toString());
+        // check there is a path from current location to that location
+        if (!this.document.hasEdge(player.getCurrent().getName(), locationName)) {
+            throw new MyExceptions.InvalidCommandException("[ERROR]: No direct path to that location!");
+        }
+        player.setCurrent(location);
+        action.setNarration(new StringBuilder().append("Arrived at new location: ").append(locationName).toString());
+    }
+
+    private void handleCommandActions(Action action, Player player, Set<String> entities) throws MyExceptions {
+        // perform basic actions: perform and add narration to action
         if (action instanceof InvAction) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(player.getName()).append("'s inventory has:").append(System.lineSeparator());
-            for (Artefact artefact : player.listInventory()) {
-                sb.append(artefact.getName()).append(" ");
-            }
-            action.setNarration(sb.toString());
+            this.handleInvAction(player, action);
         } else if (action instanceof LookAction) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("Description to current location: ").append(player.getCurrent().getDescription()).append(System.lineSeparator());
-            if (this.document.getEdgesFrom(player.getCurrent().getName()) != null) {
-                sb.append("You have access to these locations:").append(System.lineSeparator());
-                for (String to : this.document.getEdgesFrom(player.getCurrent().getName())) {
-                    sb.append("  ").append(to).append(" ");
-                }
-            }else{
-                sb.append("You have no access to other locations.");
-            }
-            sb.append(System.lineSeparator());
-            sb.append("These game entities can be found here:").append(System.lineSeparator());
-            for (GameEntity item : player.getCurrent().listItems()) {
-                sb.append(item.toString()).append(System.lineSeparator());
-            }
-            sb.append("Other players here:").append(System.lineSeparator());
-            for (Map.Entry<String, Player> entry : this.document.getPlayers().entrySet()) {
-                if (!entry.getKey().equals(player.getName()) && entry.getValue().getCurrent().equals(player.getCurrent())) {
-                    sb.append(entry.getKey()).append(" ");
-                }
-            }
-            action.setNarration(sb.toString());
+            this.handleLookAction(player, action);
         } else if (action instanceof HealthAction) {
             action.setNarration(new StringBuilder().append("Player ").append(player.getName()).append(" is of health ").append(player.getHealth()).toString());
         } else if (action instanceof GetAction) {
-            String itemName = entities.iterator().next();
-            // check the item is indeed artefact
-            if (!(this.document.getEntity(itemName) instanceof Artefact)) {
-                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to collect is not an artefact!").toString();
-            }
-            // check item is at current location
-            if (((Artefact) this.document.getEntity(itemName)).getCurrent() != player.getCurrent()) {
-                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to collect is not at current location!").toString();
-            }
-            // transfer the artefact from current location to storeroom
-            MovableEntity item = player.getCurrent().removeItem(itemName);
-            this.document.getLocation("storeroom").addItem(item);
-            // set the location of artefact to be storeroom
-            item.setCurrent(this.document.getLocation("storeroom"));
-            // record the artefact in player's inventory
-            player.insertItem((Artefact) item);
-            ((Artefact) item).setOwner(player);
-            // set output string
-            action.setNarration(new StringBuilder().append("You picked up the ").append(itemName).toString());
+            this.handleGetAction(player, action, entities.iterator().next());
         } else if (action instanceof DropAction) {
-            String itemName = entities.iterator().next();
-            // check the item is indeed artefact
-            if (!(this.document.getEntity(itemName) instanceof Artefact)) {
-                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop is not an artefact!").toString();
-            }
-            // check the artefact can be found in player's inventory and storeroom
-            if (!player.hasItem(itemName)) {
-                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop cannot be found in player's inventory!").toString();
-            }
-            if (!this.document.getLocation("storeroom").hasItem(itemName)) {
-                return new StringBuilder().append("[ERROR]: The item ").append(itemName).append(" that you would like to drop cannot be found!").toString();
-            }
-            // remove artefact from inventory
-            player.removeItem(itemName);
-            // remove artefact from storeroom
-            Artefact item = (Artefact) this.document.getLocation("storeroom").removeItem(itemName);
-            // put artefact to location
-            player.getCurrent().addItem(item);
-            // reset artefact owner
-            item.setOwner(null);
-            // set artefact current location
-            item.setCurrent(player.getCurrent());
-            // set output string
-            action.setNarration(new StringBuilder().append("You dropped the ").append(itemName).toString());
+            this.handleDropCommand(player, action, entities.iterator().next());
         } else if (action instanceof GotoAction) {
-            String locationName = entities.iterator().next();
-            Location location = this.document.getLocation(locationName);
-            // check target location is indeed a location
-            if (location == null)
-                return new StringBuilder().append(locationName).append(" is not a valid location!").toString();
-            // check there is a path from current location to that location
-            if (!this.document.hasEdge(player.getCurrent().getName(), locationName))
-                return "[ERROR]: No direct path to that location!";
-            player.setCurrent(location);
-            action.setNarration(new StringBuilder().append("Arrived at new location: ").append(locationName).toString());
+            this.handleGotoCommand(player, action, entities.iterator().next());
         }
-
         // custom actions: consume and produce
         else {
             for (String consumed : action.getConsumed()) {
@@ -235,22 +284,6 @@ public class Controller {
                 this.produceEntity(produced, player.getCurrent(), player);
             }
         }
-        // if player died:
-        if (player.getHealth() == 0) {
-            for (Artefact item : player.listInventory()) {
-                // set owner of artefact to null, remove artefact from storeroom, remove artefact from inventory, put artefact to location
-                item.setOwner(null);
-                item.getCurrent().removeItem(item.getName());
-                item.setCurrent(player.getCurrent());
-                player.removeItem(item.getName());
-                player.getCurrent().addItem(item);
-            }
-            player.setCurrent(this.document.getLocation(0));
-            player.resetHealth();
-            return "You died and lost all items and are teleported to the start location.";
-        }
-
-        return action.getNarration();
     }
 
     public void consumeEntity(String entity, Location currentLocation, Player player) {
@@ -274,6 +307,7 @@ public class Controller {
             ((Artefact) item).setOwner(null);
             player.removeItem(item.getName());
         }
+        item.setCurrent(this.document.getLocation("storeroom"));
     }
 
     public void produceEntity(String entity, Location currentLocation, Player player) {

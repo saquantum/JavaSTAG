@@ -36,6 +36,15 @@ public class MyTests {
                 || response.contains("unreachable") || response.contains("do not"));
     }
 
+    void assertPassCommand(String response) {
+        response = response.toLowerCase();
+        assertFalse(response.contains("error") || response.contains("reject") || response.contains("cannot")
+                || response.contains("can't") || response.contains("cant") || response.contains("don't")
+                || response.contains("dont") || response.contains("unknown") || response.contains("recogni")
+                || response.contains("invalid") || response.contains("refuse") || response.contains("unauthori")
+                || response.contains("unreachable") || response.contains("do not"));
+    }
+
     // parsing entities:
     // check the first location.
     // create a storeroom if not included in the dot file.
@@ -195,6 +204,11 @@ public class MyTests {
     // check consumed and produced items are not in another player's inventory.
     @Test
     void testActionSubjects(){
+        assertPassCommand(sendCommandToServer("me: test cabin"));
+        sendCommandToServer("me: goto forest");
+        assertRejectCommand(sendCommandToServer("me: test cabin"));
+        sendCommandToServer("me: goto cabin");
+
         sendCommandToServer("me: get axe");
         sendCommandToServer("me: goto forest");
         sendCommandToServer("you: goto forest");
@@ -294,6 +308,16 @@ public class MyTests {
         assertTrue(sendCommandToServer("me: open key").contains("door"));
     }
 
+    @Test
+    void testDuplicateCommand(){
+        assertRejectCommand(sendCommandToServer("me: goto cabin"));
+        assertTrue(sendCommandToServer("me: open axe").contains("way"));
+        assertTrue(sendCommandToServer("me: open axe").contains("way"));
+        assertTrue(sendCommandToServer("me: open axe").contains("way"));
+        assertTrue(sendCommandToServer("me: close axe").contains("way"));
+        assertRejectCommand(sendCommandToServer("me: goto forest"));
+    }
+
     // check composite commands: 'get potion and axe', 'get potion and unlock trapdoor'
     @Test
     void testComposite() {
@@ -305,6 +329,8 @@ public class MyTests {
     // check player name
     @Test
     void testInvalidPlayerName() {
+        assertRejectCommand(sendCommandToServer("get potion"));
+        assertRejectCommand(sendCommandToServer("goto forest"));
         assertRejectCommand(sendCommandToServer("me_: look"));
         assertRejectCommand(sendCommandToServer("me$: look"));
         assertRejectCommand(sendCommandToServer("player1: look"));

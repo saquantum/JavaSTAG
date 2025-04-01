@@ -46,7 +46,11 @@ public final class GameServer {
     */
     public String handleCommand(String command) {
         if(this.controller == null) return "[ERROR]: Invalid building files so server has no valid controlling unit!";
-        return this.controller.handleCommand(command);
+        try {
+            return this.controller.handleCommand(command);
+        } catch (MyExceptions e) {
+            return e.getMessage();
+        }
     }
 
     /**
