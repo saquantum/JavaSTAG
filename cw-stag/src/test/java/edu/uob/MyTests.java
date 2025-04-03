@@ -367,6 +367,20 @@ public class MyTests {
         assertTrue(sendCommandToServer("you: inv").contains("potion"));
     }
 
+    // overlapped trigger with different subject
+    @Test
+    void testOverlappedTriggerPhrase(){
+        assertTrue(sendCommandToServer("me: trigger axe").contains("single"));
+        assertRejectCommand(sendCommandToServer("me: trigger potion"));
+        assertTrue(sendCommandToServer("me: trigger phrase potion").contains("multi"));
+        assertTrue(sendCommandToServer("me: trigger phrase axe").contains("single"));
+    }
 
-
+    // same trigger, overlapped subject
+    @Test
+    void testOverlappedSubject(){
+        assertTrue(sendCommandToServer("me: acquire axe").contains("1"));
+        assertTrue(sendCommandToServer("me: acquire axe and potion").contains("2"));
+        assertRejectCommand(sendCommandToServer("me: acquire axe and coin"));
+    }
 }

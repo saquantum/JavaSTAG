@@ -97,6 +97,7 @@ public class Action {
         List<String> phrase = new LinkedList<>();
 
         List<List<String>> triggersPossible = this.triggers.get(words.get(0));
+        if(triggersPossible == null) return false;
 
         for (String word : words) {
             phrase.add(word);
@@ -108,7 +109,7 @@ public class Action {
         return false;
     }
 
-    public boolean checkSubjects(Set<String> candidates) throws MyExceptions {
+    public boolean checkSubjects(Set<String> candidates, boolean strict) throws MyExceptions {
         // built-in commands
         if (this instanceof InvAction || this instanceof LookAction || this instanceof HealthAction) {
             if (!candidates.isEmpty()) throw new MyExceptions.InvalidBasicAction();
@@ -118,16 +119,24 @@ public class Action {
             if (candidates.size() != 1) throw new MyExceptions.InvalidBasicAction();
             return true;
         }
-        // Partial command: candidates contains at least one subject
-        boolean hasSubject = false;
-        for (String subject : this.subjects) {
-            if (candidates.contains(subject)) {
-                hasSubject = true;
-                break;
+        if(!strict) {
+            // Partial command: candidates contains at least one subject
+            boolean hasSubject = false;
+            for (String subject : this.subjects) {
+                if (candidates.contains(subject)) {
+                    hasSubject = true;
+                    break;
+                }
+            }
+            if (!hasSubject) return false;
+        }else{
+            // strict mode: all subjects must be found
+            for (String subject : this.subjects) {
+                if (!candidates.contains(subject)) {
+                    return false;
+                }
             }
         }
-        if (!hasSubject) return false;
-
         // Extraneous entity: candidates must be included in subjects
         for (String candidate : candidates) {
             if (!this.subjects.contains(candidate)) return false;

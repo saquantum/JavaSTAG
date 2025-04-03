@@ -18,7 +18,7 @@ public final class GameServer {
 
     public static void main(String[] args) throws IOException {
         File entitiesFile = Paths.get(new StringBuilder().append("config").append(File.separator).append("basic-entities.dot").toString()).toAbsolutePath().toFile();
-        File actionsFile = Paths.get(new StringBuilder().append("config").append(File.separator).append("basic-actions.dot").toString()).toAbsolutePath().toFile();
+        File actionsFile = Paths.get(new StringBuilder().append("config").append(File.separator).append("basic-actions.xml").toString()).toAbsolutePath().toFile();
         GameServer server = new GameServer(entitiesFile, actionsFile);
         server.blockingListenOn(8888);
     }

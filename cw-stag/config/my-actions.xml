@@ -3,6 +3,35 @@
 
     <action>
         <triggers>
+            <keyphrase>acquire</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>acquire test 1</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>acquire</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>acquire test 2</narration>
+    </action>
+
+    <action>
+        <triggers>
             <keyphrase>trigger</keyphrase>
         </triggers>
         <subjects>

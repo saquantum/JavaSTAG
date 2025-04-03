@@ -23,7 +23,7 @@ public class Controller {
         Player player = result.getValue();
 
         // remove punctuations and split commands by white space
-        List<String> words = Arrays.stream(this.removeCommandPunctuations(command).toLowerCase().split("\\s+")).toList();
+        List<String> words = new LinkedList<>(Arrays.stream(this.removeCommandPunctuations(command).toLowerCase().trim().split("\\s+")).toList());
 
         // extract all entities
         Set<String> entities = new HashSet<>();
@@ -107,17 +107,12 @@ public class Controller {
                 }
             }
         }
-        // loop through possible actions to check subjects
-        try {
-            possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
-                @Override
-                public boolean test(Map.Entry<Integer, Action> entry) {
-                    return !entry.getValue().checkSubjects(entities);
-                }
-            });
-        } catch (MyExceptions e) {
-            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: ").append(e.getMessage()).toString());
+        // no possible action found
+        if (possibleActions.isEmpty()) {
+            throw new MyExceptions.InvalidCommandException("[ERROR]: I can't recognize this command.");
         }
+
+        possibleActions = this.checkActionSubjects(words, possibleActions, entities);
         // no valid action found
         if (possibleActions.isEmpty()) {
             throw new MyExceptions.InvalidCommandException("[ERROR]: I can't recognize this command.");
@@ -127,6 +122,30 @@ public class Controller {
             throw new MyExceptions.InvalidCommandException("[ERROR]: The command is too ambiguous and I don't understand what exactly you would like to perform.");
         }
         // only one possible action is left
+        return possibleActions;
+    }
+
+    private Map<Integer, Action> checkActionSubjects(List<String> words, Map<Integer, Action> possibleActions, Set<String> entities) throws MyExceptions {
+        try {
+            // filter without strict mode
+            possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
+                @Override
+                public boolean test(Map.Entry<Integer, Action> entry) {
+                    return !entry.getValue().checkSubjects(entities, false);
+                }
+            });
+            // if the command is possibly ambiguous, filter again with strict mode
+            if(possibleActions.size() > 1){
+                possibleActions.entrySet().removeIf(new Predicate<Map.Entry<Integer, Action>>() {
+                    @Override
+                    public boolean test(Map.Entry<Integer, Action> entry) {
+                        return !entry.getValue().checkSubjects(entities, true);
+                    }
+                });
+            }
+        } catch (MyExceptions e) {
+            throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: ").append(e.getMessage()).toString());
+        }
         return possibleActions;
     }
 
@@ -218,7 +237,7 @@ public class Controller {
         action.setNarration(new StringBuilder().append("You picked up the ").append(itemName).toString());
     }
 
-    private void handleDropCommand(Player player, Action action, String itemName) throws MyExceptions {
+    private void handleDropAction(Player player, Action action, String itemName) throws MyExceptions {
         // check the item is indeed artefact
         if (!(this.document.getEntity(itemName) instanceof Artefact)) {
             throw new MyExceptions.InvalidCommandException(new StringBuilder().append("[ERROR]: The item ")
@@ -247,7 +266,7 @@ public class Controller {
         action.setNarration(new StringBuilder().append("You dropped the ").append(itemName).toString());
     }
 
-    private void handleGotoCommand(Player player, Action action, String locationName) throws MyExceptions {
+    private void handleGotoAction(Player player, Action action, String locationName) throws MyExceptions {
         Location location = this.document.getLocation(locationName);
         // check target location is indeed a location
         if (location == null)
@@ -271,9 +290,9 @@ public class Controller {
         } else if (action instanceof GetAction) {
             this.handleGetAction(player, action, entities.iterator().next());
         } else if (action instanceof DropAction) {
-            this.handleDropCommand(player, action, entities.iterator().next());
+            this.handleDropAction(player, action, entities.iterator().next());
         } else if (action instanceof GotoAction) {
-            this.handleGotoCommand(player, action, entities.iterator().next());
+            this.handleGotoAction(player, action, entities.iterator().next());
         }
         // custom actions: consume and produce
         else {
