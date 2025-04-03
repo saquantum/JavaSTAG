@@ -1,10 +1,5 @@
 package edu.uob;
 
-import com.alexmerz.graphviz.objects.Edge;
-import com.alexmerz.graphviz.objects.Id;
-import com.alexmerz.graphviz.objects.Node;
-import com.alexmerz.graphviz.objects.PortNode;
-
 import java.util.List;
 
 public class Util {

@@ -94,6 +94,20 @@
 
     <action>
         <triggers>
+            <keyphrase>test</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>cabin</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>You are at the cabin.</narration>
+    </action>
+
+    <action>
+        <triggers>
             <keyphrase>open</keyphrase>
             <keyphrase>unlock</keyphrase>
         </triggers>

@@ -19,8 +19,8 @@ class zrTests {
     // Create a new server _before_ every @Test
     @BeforeEach
     void setup() throws ParserConfigurationException, IOException, ParseException, SAXException {
-        File entitiesFile = Paths.get("config" + File.separator + "zr-entities.dot").toAbsolutePath().toFile();
-        File actionsFile = Paths.get("config" + File.separator + "extended-actions.xml").toAbsolutePath().toFile();
+        File entitiesFile = Paths.get("config" + File.separator + "extended-entities.dot").toAbsolutePath().toFile();
+        File actionsFile = Paths.get("config" + File.separator + "zr-actions.xml").toAbsolutePath().toFile();
         server = new GameServer(entitiesFile, actionsFile);
     }
 
@@ -29,19 +29,19 @@ class zrTests {
         return server.handleCommand(command);
     }
 
-    void assertRejectCommand(String command) {
-        String response = sendCommandToServer(command).toLowerCase();
-        assertTrue(response.contains("error") || response.contains("reject") || response.contains("not")
+    void assertRejectCommand(String response) {
+        response = response.toLowerCase();
+        assertTrue(response.contains("error") || response.contains("reject") || response.contains("cannot")
                 || response.contains("can't") || response.contains("cant") || response.contains("don't")
                 || response.contains("dont") || response.contains("unknown") || response.contains("recogni")
                 || response.contains("invalid") || response.contains("refuse") || response.contains("unauthori")
-                || response.contains("unreachable"));
+                || response.contains("unreachable") || response.contains("do not"));
     }
 
     // A lot of tests will probably check the game state using 'look' - so we better make sure 'look' works well !
     @Test
     void testLook() {
-        String response = sendCommandToServer("simon: look");
+        String response = sendCommandToServer("username: simon: look");
         response = response.toLowerCase();
         assertTrue(response.contains("cabin"), "Did not see the name of the current room in response to look");
         assertTrue(response.contains("log cabin"), "Did not see a description of the room in response to look");
@@ -54,11 +54,11 @@ class zrTests {
     @Test
     void testGet() {
         String response;
-        sendCommandToServer("simon: get potion");
-        response = sendCommandToServer("simon: inv");
+        sendCommandToServer("username: simon: get potion");
+        response = sendCommandToServer("username: simon: inv");
         response = response.toLowerCase();
         assertTrue(response.contains("potion"), "Did not see the potion in the inventory after an attempt was made to get it");
-        response = sendCommandToServer("simon: look");
+        response = sendCommandToServer("username: simon: look");
         response = response.toLowerCase();
         assertFalse(response.contains("potion"), "Potion is still present in the room after an attempt was made to get it");
     }
@@ -66,8 +66,8 @@ class zrTests {
     // Test that we can goto a different location (we won't get very far if we can't move around the game !)
     @Test
     void testGoto() {
-        sendCommandToServer("simon: goto forest");
-        String response = sendCommandToServer("simon: look");
+        sendCommandToServer("username: simon: goto forest");
+        String response = sendCommandToServer("username: simon: look");
         response = response.toLowerCase();
         assertTrue(response.contains("key"), "Failed attempt to use 'goto' command to move to the forest - there is no key in the current location");
     }
@@ -76,14 +76,14 @@ class zrTests {
     @Test
     void testCaseInsensitive() {
         String response;
-        response = sendCommandToServer("simon: look").toLowerCase();
+        response = sendCommandToServer("username: simon: look").toLowerCase();
         assertTrue(response.contains("cabin"), "Did not see the name of the current room in response to look");
         assertTrue(response.contains("log cabin"), "Did not see a description of the room in response to look");
         assertTrue(response.contains("magic potion"), "Did not see a description of artifacts in response to look");
         assertTrue(response.contains("wooden trapdoor"), "Did not see description of furniture in response to look");
         assertTrue(response.contains("forest"), "Did not see available paths in response to look");
 
-        response = sendCommandToServer("simon: LooK").toLowerCase();
+        response = sendCommandToServer("username: simon: LooK").toLowerCase();
         assertTrue(response.contains("cabin"), "Did not see the name of the current room in response to look");
         assertTrue(response.contains("log cabin"), "Did not see a description of the room in response to look");
         assertTrue(response.contains("magic potion"), "Did not see a description of artifacts in response to look");
@@ -94,106 +94,108 @@ class zrTests {
     @Test
     void testStupidCommand(){
         String response;
-        response = sendCommandToServer("ajsdnas  89y23ghas");
+        response = sendCommandToServer("username: ajsdnas  89y23ghas");
         assertRejectCommand(response);
-        response = sendCommandToServer(")(^656hh");
+        response = sendCommandToServer("username: )(^656hh");
         assertRejectCommand(response);
-        response = sendCommandToServer("look look");
+        response = sendCommandToServer("username: look look");
+        assertTrue(response.contains("cabin"), "Did not see the name of the current room in response to look");
+        response = sendCommandToServer("username: look ashduigiu");
+        assertTrue(response.contains("cabin"));
     }
 
     @Test
     void testInvalidBuildInCommand(){
         String response;
-        response = sendCommandToServer("Please look around");
-        response = sendCommandToServer("look cabin");
+        response = sendCommandToServer("username: Please look around");
+        response = sendCommandToServer("username: look cabin");
         assertFalse(response.contains("cabin"));
-        sendCommandToServer("get axe");
-        response = sendCommandToServer("inv axe");
+        sendCommandToServer("username: get axe");
+        response = sendCommandToServer("username: inv axe");
         assertFalse(response.contains("axe"));
-        response = sendCommandToServer("health axe");
+        response = sendCommandToServer("username: health axe");
         assertFalse(response.contains("3"));
     }
 
     @Test
     void testBasicAction(){
         String response;
-        sendCommandToServer("get axe");
-        response = sendCommandToServer("inv").toLowerCase();
+        sendCommandToServer("username: get axe");
+        response = sendCommandToServer("username: inv").toLowerCase();
         assertTrue(response.contains("axe"));
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("cut tree with axe");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: cut tree with axe");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("log"));
-        sendCommandToServer("goto cabin");
-        System.out.println(sendCommandToServer("inv"));
-        sendCommandToServer("open the trapdoor with key");
-        response = sendCommandToServer("inventory");
-        System.out.println(response);
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: inv");
+        sendCommandToServer("username: open the trapdoor with key");
+        response = sendCommandToServer("username: inventory");
         assertFalse(response.contains("key"), "Fail to consume");
-        response = sendCommandToServer("look");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("key"), "Fail to consume");
-        response = sendCommandToServer("storeroom");
+        response = sendCommandToServer("username: storeroom");
     }
 
     @Test
     void testExtendedAction(){
         String response;
-        sendCommandToServer("get axe");
-        sendCommandToServer("get potion");
-        sendCommandToServer("get coin");
-        response = sendCommandToServer("inv").toLowerCase();
+        sendCommandToServer("username: get axe");
+        sendCommandToServer("username: get potion");
+        sendCommandToServer("username: get coin");
+        response = sendCommandToServer("username: inv").toLowerCase();
         assertTrue(response.contains("axe"));
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("cut down tree with axe");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: cut down tree with axe");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("log"));
-        sendCommandToServer("get log");
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("inv");
-        sendCommandToServer("open the trapdoor with key");
-        response = sendCommandToServer("inventory");
+        sendCommandToServer("username: get log");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: inv");
+        sendCommandToServer("username: open the trapdoor with key");
+        response = sendCommandToServer("username: inventory");
         assertFalse(response.contains("key"), "Fail to consume");
-        response = sendCommandToServer("look");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("key"), "Fail to consume");
-        sendCommandToServer("goto cellar");
-        sendCommandToServer("fight with the elf");
-        response = sendCommandToServer("health");
+        sendCommandToServer("username: goto cellar");
+        sendCommandToServer("username: fight with the elf");
+        response = sendCommandToServer("username: health");
         assertTrue(response.contains("2"));
-        response = sendCommandToServer("drink potion");
+        response = sendCommandToServer("username: drink potion");
         assertTrue(response.contains("You drink the potion and your health improves"));
-        response = sendCommandToServer("health");
+        response = sendCommandToServer("username: health");
         assertTrue(response.contains("3"));
-        sendCommandToServer("pay the elf with coin");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: pay the elf with coin");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("shovel"));
-        sendCommandToServer("get shovel");
-        response = sendCommandToServer("inventory");
+        sendCommandToServer("username: get shovel");
+        response = sendCommandToServer("username: inventory");
         assertFalse(response.contains("coin"));
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("goto forest");
-        sendCommandToServer("goto riverbank");
-        sendCommandToServer("look");
-        sendCommandToServer("bridge the river with log");
-        sendCommandToServer("goto clearing");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: goto riverbank");
+        sendCommandToServer("username: look");
+        sendCommandToServer("username: bridge the river with log");
+        sendCommandToServer("username: goto clearing");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("clearing"));
-         sendCommandToServer("dig the ground with shovel");
-        response = sendCommandToServer("look");
+         sendCommandToServer("username: dig the ground with shovel");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("It looks like the soil has been recently disturbed"));
         assertTrue(response.contains("hole"));
         assertTrue(response.contains("gold"));
-        sendCommandToServer("get gold");
-        response = sendCommandToServer("inv");
+        sendCommandToServer("username: get gold");
+        response = sendCommandToServer("username: inv");
         assertTrue(response.contains("gold"));
     }
 
     @Test
     void testInvalidPath(){
         String response;
-        sendCommandToServer("goto cellar");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto cellar");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("cellar"));
     }
 
@@ -208,102 +210,188 @@ class zrTests {
     @Test
     void testTwoWayPath(){
         String response;
-        sendCommandToServer("goto forest");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("cabin"));
         assertTrue(response.contains("riverbank"));
+        response = sendCommandToServer("username: goto cabin");
+        response = sendCommandToServer("username: look");
     }
 
     @Test
     void testConsumePath(){
-        assertTrue(sendCommandToServer("look").contains("forest"));
-        System.out.println(sendCommandToServer("please destroy path with axe"));
-        assertFalse(sendCommandToServer("look").contains("forest"));
+        String response;
+        response = sendCommandToServer("username: please destroy path with axe");
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: look");
+        assertFalse(response.contains("forest"));
     }
 
     @Test
     void testPartialCommand(){
         String response;
-        // sendCommandToServer("get axe");
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("unlock with key");
-        sendCommandToServer("goto cellar");
-        response = sendCommandToServer("look");
+        // sendCommandToServer("username: get axe");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: unlock with key");
+        sendCommandToServer("username: goto cellar");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("cellar"));
     }
 
     @Test
     void testExtraneousEntities(){
         String response;
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("open the trapdoor with key and potion");
-        sendCommandToServer("goto cellar");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: open the trapdoor with key and potion");
+        sendCommandToServer("username: goto cellar");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("cellar"));
     }
 
     @Test
     void testAmbiguousCommands(){
         String response;
-        sendCommandToServer("get axe");
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("unlock with key");
-        sendCommandToServer("look");
-        sendCommandToServer("destroy with coin");
-        sendCommandToServer("goto forest");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: get axe");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: unlock with key");
+        sendCommandToServer("username: look");
+        sendCommandToServer("username: destroy with coin");
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("forest"));
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("destroy path with coin and axe");
-        sendCommandToServer("goto forest");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto cabin");
+        sendCommandToServer("username: destroy path with coin and axe");
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: look");
         assertFalse(response.contains("forest"));
     }
 
     @Test
     void testHealthAndRespawn(){
         String response;
-        sendCommandToServer("get potion");
-        sendCommandToServer("use potion heal player");
-        response = sendCommandToServer("health");
+        sendCommandToServer("username: get potion");
+        sendCommandToServer("username: use potion heal player");
+        response = sendCommandToServer("username: health");
         assertTrue(response.contains("3"));
-        sendCommandToServer("goto forest");
-        sendCommandToServer("use potion to attack player");
-        response = sendCommandToServer("health");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: use potion to attack player");
+        response = sendCommandToServer("username: health");
         assertTrue(response.contains("2"));
-        sendCommandToServer("use potion attack player");
-        sendCommandToServer("use potion attack player");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: use potion attack player");
+        sendCommandToServer("username: use potion attack player");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("cabin"));
-        response = sendCommandToServer("inv");
+        response = sendCommandToServer("username: inv");
         assertFalse(response.contains("potion"));
-        sendCommandToServer("goto forest");
-        response = sendCommandToServer("look");
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: look");
+        assertTrue(response.contains("potion"));
+    }
+
+    @Test
+    void testConsumeAndProduce(){
+        String response;
+        sendCommandToServer("username: drink potion");
+        response = sendCommandToServer("username: look");
+        assertFalse(response.contains("potion"));
+        sendCommandToServer("username: storeroom");
+        sendCommandToServer("username: use axe to generate");
+        response = sendCommandToServer("username: look");
         assertTrue(response.contains("potion"));
     }
 
     @Test
     void testSeparateKeyphrase(){
         String response;
-        sendCommandToServer("attack the player");
-        response = sendCommandToServer("health");
+        sendCommandToServer("username: attack the player");
+        response = sendCommandToServer("username: health");
         assertTrue(response.contains("3"));
+    }
+
+    @Test
+    void testCreateStoreroom(){
+        String response;
+        sendCommandToServer("username: drink potion");
+        response = sendCommandToServer("username: look");
+        assertFalse(response.contains("potion"));
+        sendCommandToServer("username: use axe to generate");
+        response = sendCommandToServer("username: look");
+        assertTrue(response.contains("potion"));
     }
 
     @Test
     void testDuplicateKeyphrase(){
         String response;
-        sendCommandToServer("goto forest");
-        sendCommandToServer("get key");
-        sendCommandToServer("goto cabin");
-        sendCommandToServer("open and unlock the trapdoor with key");
-        response = sendCommandToServer("inv");
+        sendCommandToServer("username: goto forest");
+        sendCommandToServer("username: get key");
+        sendCommandToServer("username: goto cabin");
+        response = sendCommandToServer("username: open and unlock the trapdoor with key");
+        response = sendCommandToServer("username: inv");
         assertFalse(response.contains("key"));
+    }
+
+    @Test
+    void testOtherUserInventory(){
+        String response;
+        sendCommandToServer("usertwo: use potion to attack player");
+        sendCommandToServer("userone: get potion");
+        sendCommandToServer("usertwo: get potion");
+        response = sendCommandToServer("usertwo: inv");
+        assertFalse(response.contains("potion"));
+        sendCommandToServer("usertwo: drink potion");
+        response = sendCommandToServer("usertwo: health");
+        assertTrue(response.contains("2"));
+    }
+
+    @Test
+    void testCompositeCommand(){
+        String response;
+        sendCommandToServer("username: get axe and potion");
+        response = sendCommandToServer("username: inv");
+        assertFalse(response.contains("potion"));
+        sendCommandToServer("username: goto forest and riverbank");
+        response = sendCommandToServer("username: look");
+        assertTrue(response.contains("cabin"));
+        sendCommandToServer("username: get potion and drink potion");
+        response = sendCommandToServer("username: look");
+        assertTrue(response.contains("potion"));
+    }
+
+    @Test
+    void testMultiGet(){
+        String response;
+        sendCommandToServer("username: get potion");
+        sendCommandToServer("username: get potion");
+        sendCommandToServer("username: get potion");
+        sendCommandToServer("username: drop potion");
+        response = sendCommandToServer("username: inv");
+        assertFalse(response.contains("potion"));
+    }
+
+    @Test
+    void testMultiProduce(){
+        String response;
+        sendCommandToServer("username: use axe to generate");
+        sendCommandToServer("username: use axe to generate");
+        sendCommandToServer("username: use axe to generate");
+        sendCommandToServer("username: get potion");
+        response = sendCommandToServer("username: look");
+        assertFalse(response.contains("potion"));
+    }
+
+    @Test
+    void testLocationAsSubject(){
+        String response;
+        response = sendCommandToServer("username: find cabin");
+        assertTrue(response.contains("cabin"));
+        sendCommandToServer("username: goto forest");
+        response = sendCommandToServer("username: find cabin");
+        assertFalse(response.contains("cabin"));
     }
 }

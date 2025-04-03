@@ -1,0 +1,8 @@
+#th to the directory containing Java files
+DIR="src/main/java/edu/uob"
+
+# Loop through all Java files in the directory
+for FILE in "$DIR"/*.java; do
+  echo "Running: $FILE"
+  ./mvnw exec:java@strange -Dexec.args="$FILE" 2>&1 | grep "\[WARN\]"
+done

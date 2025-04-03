@@ -16,7 +16,7 @@ public class Document {
     private int vertices = 0;
     private final Map<Integer, Location> locations = new HashMap<>();
     private final Map<String, Integer> reverseLocations = new HashMap<>();
-    private final Map<String, List<String>> adj = new HashMap<>();
+    private final Map<String, Set<String>> adj = new HashMap<>();
 
     private final Map<String, GameEntity> allEntities = new HashMap<>();
 
@@ -60,12 +60,12 @@ public class Document {
             throw new MyExceptions.InvalidEdgeException();
         }
 
-        List<String> list = this.adj.get(from);
-        if (list == null) {
-            list = new LinkedList<>();
+        Set<String> pathTo = this.adj.get(from);
+        if (pathTo == null) {
+            pathTo = new HashSet<>();
         }
-        list.add(to);
-        this.adj.put(from, list);
+        pathTo.add(to);
+        this.adj.put(from, pathTo);
     }
 
     public boolean removeEdge(String from, String to) {
@@ -91,7 +91,7 @@ public class Document {
         return false;
     }
 
-    public List<String> getEdgesFrom(String from) {
+    public Set<String> getEdgesFrom(String from) {
         return this.adj.get(from.toLowerCase());
     }
 
@@ -122,7 +122,7 @@ public class Document {
         for (int i = 0; i < this.vertices; i++) {
             sb.append(locations.get(i).toString());
         }
-        for (Map.Entry<String, List<String>> entry : this.adj.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : this.adj.entrySet()) {
             String from = entry.getKey();
             for (String to : entry.getValue()) {
                 sb.append(from).append(" -> ").append(to).append(System.lineSeparator());
@@ -155,18 +155,8 @@ public class Document {
             Map.entry("furniture", Types.FURNITURE), Map.entry("characters", Types.CHARACTER),
             Map.entry("artefacts", Types.ARTEFACT), Map.entry("paths", Types.PATH));
 
-    private void setDocument(Graph G) throws MyExceptions {
-        if (G == null || entityTypes.get(G.getId().getId().toLowerCase()) != Types.LAYOUT) {
-            throw new MyExceptions.InvalidParserException();
-        }
-
-        // store locations
-        Graph locationGraph = G.getSubgraphs().get(0);
-        if (entityTypes.get(locationGraph.getId().getId().toLowerCase()) != Types.LOCATION) {
-            throw new MyExceptions.NotLocationException();
-        }
-        List<Graph> locations = locationGraph.getSubgraphs(); // cluster001, cluster002, ...
-        if (locations != null && locations.size() > 0) {
+    private void parseLocations(List<Graph> locations) {
+        if (locations != null && !locations.isEmpty()) {
             for (Graph location : locations) {
                 // some checks
                 Node locationDetails = this.getDirectNodes(location).get(0);
@@ -189,6 +179,28 @@ public class Document {
                 this.addLocation(current);
             }
         }
+    }
+
+    private void parsePaths(List<Edge> edges) {
+        if (edges != null && !edges.isEmpty()) {
+            for (Edge edge : edges) {
+                this.addEdge(edge.getSource().getNode().getId().getId(), edge.getTarget().getNode().getId().getId());
+            }
+        }
+    }
+
+    private void setDocument(Graph G) throws MyExceptions {
+        if (G == null || entityTypes.get(G.getId().getId().toLowerCase()) != Types.LAYOUT) {
+            throw new MyExceptions.InvalidParserException();
+        }
+
+        // store locations
+        Graph locationGraph = G.getSubgraphs().get(0);
+        if (entityTypes.get(locationGraph.getId().getId().toLowerCase()) != Types.LOCATION) {
+            throw new MyExceptions.NotLocationException();
+        }
+        List<Graph> locations = locationGraph.getSubgraphs(); // cluster001, cluster002, ...
+        this.parseLocations(locations);
 
         // if storeroom is not specified, generate one
         if (!this.hasLocation("storeroom")) {
@@ -201,10 +213,31 @@ public class Document {
             throw new MyExceptions.NotPathException();
         }
         List<Edge> edges = pathGraph.getEdges();
-        if (edges != null && edges.size() > 0) {
-            for (Edge edge : edges) {
-                this.addEdge(edge.getSource().getNode().getId().getId(), edge.getTarget().getNode().getId().getId());
+        this.parsePaths(edges);
+    }
+
+    private void parseItem(Types type, Node node, String name, Location location, List<MovableEntity> items) throws MyExceptions {
+        Class<? extends MovableEntity> clazz = null;
+        if (type == Types.PLAYER) clazz = Player.class;
+        if (type == Types.FURNITURE) clazz = Furniture.class;
+        if (type == Types.CHARACTER) clazz = Character.class;
+        if (type == Types.ARTEFACT) clazz = Artefact.class;
+        if (clazz == null) throw new MyExceptions.NoSuchTypeException(type.toString());
+
+        try {
+            MovableEntity item = clazz.getConstructor(String.class).newInstance(name);
+            // insert player into players, insert other movable to all entities
+            if (type == Types.PLAYER) {
+                this.players.put(name, (Player) item);
+            } else {
+                this.allEntities.put(name, item);
             }
+            // set item's attributes and initial location
+            item.setAttributes(node.getAttributes());
+            item.setCurrent(location);
+            items.add(item);
+        } catch (Exception e) {
+            throw new MyExceptions.NoConstructorException(type.toString());
         }
     }
 
@@ -223,42 +256,12 @@ public class Document {
                 throw new MyExceptions.DuplicateEntityException();
             }
             this.checkBuiltInAction(name);
-
-            Class<? extends MovableEntity> clazz = null;
-            if (type == Types.PLAYER) {
-                clazz = Player.class;
-            }
-            if (type == Types.FURNITURE) {
-                clazz = Furniture.class;
-            }
-            if (type == Types.CHARACTER) {
-                clazz = Character.class;
-            }
-            if (type == Types.ARTEFACT) {
-                clazz = Artefact.class;
-            }
-
-            try {
-                MovableEntity item = clazz.getConstructor(String.class).newInstance(name);
-
-                // insert player into players, insert other movable to all entities
-                if (type == Types.PLAYER) {
-                    this.players.put(name, (Player) item);
-                }else{
-                    this.allEntities.put(name, item);
-                }
-                // set item's attributes and initial location
-                item.setAttributes(node.getAttributes());
-                item.setCurrent(location);
-                items.add(item);
-            } catch (Exception e) {
-                throw new MyExceptions.NoConstructorException(type.toString());
-            }
+            this.parseItem(type, node, name, location, items);
         }
         return items;
     }
 
     private void checkBuiltInAction(String name) throws MyExceptions {
-        if (GameActions.builtInActions.contains(name)) throw new MyExceptions.DuplicateEntityException();
+        if (GameActions.builtInActions.containsKey(name)) throw new MyExceptions.DuplicateEntityException();
     }
 }
