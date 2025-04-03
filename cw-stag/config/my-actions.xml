@@ -3,6 +3,34 @@
 
     <action>
         <triggers>
+            <keyphrase>trigger</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>axe</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>single word trigger</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>trigger phrase</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>multi word trigger phrase</narration>
+    </action>
+
+    <action>
+        <triggers>
             <keyphrase>store</keyphrase>
         </triggers>
         <subjects>
